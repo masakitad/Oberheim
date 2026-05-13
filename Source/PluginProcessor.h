@@ -52,7 +52,7 @@ public:
     bool loadBankFromFile (const juce::File&);
     bool saveBankToFile   (const juce::File&) const;
     bool loadCurrentPatchFromXml (const juce::XmlElement&);
-    void saveCurrentPatchToXml   (juce::XmlElement&, const juce::String& patchName) const;
+    void saveCurrentPatchToXml   (juce::XmlElement&, const juce::String& patchName);
 
     // Currently selected patch slot (0..119); just metadata, no audio impact
     int   currentBank    = 0;
