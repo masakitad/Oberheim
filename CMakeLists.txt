@@ -10,6 +10,18 @@ if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
 
+# ---- macOS specifics ---------------------------------------------------------
+if(APPLE)
+    # Minimum supported macOS. 10.13 is JUCE 8's lower bound.
+    if(NOT CMAKE_OSX_DEPLOYMENT_TARGET)
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "" FORCE)
+    endif()
+    # Build a universal binary by default (Intel + Apple Silicon).
+    if(NOT CMAKE_OSX_ARCHITECTURES)
+        set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64" CACHE STRING "" FORCE)
+    endif()
+endif()
+
 include(FetchContent)
 
 set(JUCE_GIT_TAG "8.0.4" CACHE STRING "JUCE git tag/branch to fetch")
@@ -88,3 +100,22 @@ target_link_libraries(OB8Native PRIVATE
 )
 
 target_include_directories(OB8Native PRIVATE Source)
+
+# ---- macOS post-build: strip xattrs and ad-hoc codesign all bundles ----------
+# Locally-built JUCE bundles have no signature, so Gatekeeper refuses to open
+# them with "破損しているか不完全である可能性があります". The fix is to
+# remove the quarantine attribute and apply an ad-hoc signature.
+if(APPLE)
+    foreach(fmt IN ITEMS Standalone VST3 AU)
+        set(plugin_target OB8Native_${fmt})
+        if(TARGET ${plugin_target})
+            add_custom_command(TARGET ${plugin_target} POST_BUILD
+                COMMAND xattr -cr  "$<TARGET_BUNDLE_DIR:${plugin_target}>"
+                COMMAND codesign --force --deep --sign - --timestamp=none
+                                 "$<TARGET_BUNDLE_DIR:${plugin_target}>"
+                COMMENT "Ad-hoc codesign ${plugin_target}"
+                VERBATIM
+            )
+        endif()
+    endforeach()
+endif()
