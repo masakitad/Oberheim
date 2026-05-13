@@ -1,0 +1,47 @@
+# Build directories
+build/
+Build/
+cmake-build-*/
+out/
+
+# JUCE generated
+JuceLibraryCode/
+Builds/
+
+# IDEs
+.vscode/
+.idea/
+*.user
+*.suo
+*.ncb
+*.sdf
+*.opensdf
+
+# OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*~
+
+# Compiled
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.vst3
+*.component
+*.exe
+
+# JUCE FetchContent cache
+_deps/
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt

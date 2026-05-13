@@ -1,0 +1,79 @@
+#include "OB8Knob.h"
+#include "OB8LookAndFeel.h"
+
+namespace ob8 {
+
+OB8Knob::OB8Knob (juce::AudioProcessorValueTreeState& apvts,
+                  const juce::String& paramID,
+                  const juce::String& labelText)
+{
+    slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 70, 16);
+    slider.setRotaryParameters (juce::MathConstants<float>::pi * 1.25f,
+                                juce::MathConstants<float>::pi * 2.75f,
+                                true);
+    addAndMakeVisible (slider);
+
+    label.setText (labelText, juce::dontSendNotification);
+    label.setJustificationType (juce::Justification::centred);
+    label.setFont (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
+    label.setColour (juce::Label::textColourId, OB8LookAndFeel::panelCream());
+    addAndMakeVisible (label);
+
+    attachment.reset (new juce::AudioProcessorValueTreeState::SliderAttachment (apvts, paramID, slider));
+}
+
+void OB8Knob::resized()
+{
+    auto bounds = getLocalBounds();
+    label.setBounds  (bounds.removeFromTop (14));
+    slider.setBounds (bounds);
+}
+
+void OB8Knob::paint (juce::Graphics&) {}
+
+// ---------- Toggle -----------------------------------------------------
+
+OB8Toggle::OB8Toggle (juce::AudioProcessorValueTreeState& apvts,
+                     const juce::String& paramID,
+                     const juce::String& labelText)
+{
+    button.setButtonText (labelText);
+    addAndMakeVisible (button);
+    attachment.reset (new juce::AudioProcessorValueTreeState::ButtonAttachment (apvts, paramID, button));
+}
+
+void OB8Toggle::resized() { button.setBounds (getLocalBounds()); }
+
+// ---------- Choice -----------------------------------------------------
+
+OB8Choice::OB8Choice (juce::AudioProcessorValueTreeState& apvts,
+                     const juce::String& paramID,
+                     const juce::String& labelText)
+{
+    addAndMakeVisible (combo);
+    label.setText (labelText, juce::dontSendNotification);
+    label.setJustificationType (juce::Justification::centred);
+    label.setFont (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
+    label.setColour (juce::Label::textColourId, OB8LookAndFeel::panelCream());
+    addAndMakeVisible (label);
+
+    if (auto* p = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (paramID)))
+    {
+        int id = 1;
+        for (const auto& choice : p->choices)
+            combo.addItem (choice, id++);
+    }
+    attachment.reset (new juce::AudioProcessorValueTreeState::ComboBoxAttachment (apvts, paramID, combo));
+}
+
+void OB8Choice::resized()
+{
+    auto bounds = getLocalBounds();
+    label.setBounds (bounds.removeFromTop (14));
+    combo.setBounds (bounds.reduced (4, 4));
+}
+
+void OB8Choice::paint (juce::Graphics&) {}
+
+} // namespace ob8
