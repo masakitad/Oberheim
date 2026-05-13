@@ -6,18 +6,31 @@
 namespace ob8::dsp {
 
 /*
-    Analog-style ADSR modelled after the CEM3310 used in the OB-8.
+    Analog ADSR modelled on the Curtis CEM3310.
 
-    The CEM3310 charges/discharges an RC network through a current source
-    proportional to the control voltage. The resulting curves are exponentials
-    (not linear) — which is what gives Oberheim envelopes their characteristic
-    "snap". We use sample-by-sample one-pole approximations with calibrated
-    time constants.
+    CEM3310 physics, briefly:
+      * Each stage drives a 0.01 uF cap through an exponential current source
+        whose magnitude is set by a control voltage. The result is a true RC
+        exponential charge/discharge.
+      * The Attack stage charges toward roughly +5 V; the chip compares to a
+        ~+4 V threshold and clamps the output at 1.0 at that point. The ratio
+        of "target" to "trigger threshold" defines the famous Oberheim snap:
+        the envelope crosses 1.0 well before its asymptote, so even long
+        attacks rise quickly at first and then would saturate -- but instead
+        get clamped and move on to Decay.
+      * Decay and Release are standard RC discharges toward the sustain level
+        and zero respectively.
 
-    Times are in seconds and follow the OB-8 panel: ~1 ms shortest, ~10 s
-    longest. We pick the one-pole coefficient so that the envelope reaches
-    99% of its target in the specified time (corresponds to ~4.6 time
-    constants, which matches the CEM3310 datasheet behaviour).
+    We mirror this exactly:
+      Attack:  target = kAttackTarget (~ 1.5), threshold = 1.0
+               coef chosen so the one-pole reaches 1.0 in aTime seconds.
+      Decay:   target = sustain,   coef chosen for 99% completion in dTime.
+      Release: target = 0,         coef chosen for 99% completion in rTime.
+
+    Coefficients are recomputed whenever the corresponding ADSR knob moves
+    OR the stage transitions, so live knob tweaks affect the ongoing stage --
+    which matches the real analog behaviour (potentiometers always set the
+    current source, regardless of stage).
 */
 class Envelope
 {
@@ -39,10 +52,27 @@ public:
         coef   = 0.0;
     }
 
-    void setAttack  (double s) noexcept { aTime = std::max (0.0005, s); }
-    void setDecay   (double s) noexcept { dTime = std::max (0.0005, s); }
-    void setSustain (double v) noexcept { sLvl  = std::clamp (v, 0.0, 1.0); }
-    void setRelease (double s) noexcept { rTime = std::max (0.0005, s); }
+    void setAttack  (double s) noexcept
+    {
+        aTime = std::max (0.0003, s);
+        if (stage == Stage::Attack)  coef = attackCoef();
+    }
+    void setDecay   (double s) noexcept
+    {
+        dTime = std::max (0.0005, s);
+        if (stage == Stage::Decay)   coef = ninetyNineCoef (dTime);
+    }
+    void setSustain (double v) noexcept
+    {
+        sLvl  = std::clamp (v, 0.0, 1.0);
+        if (stage == Stage::Decay)   target = sLvl;
+        if (stage == Stage::Sustain) value  = sLvl;
+    }
+    void setRelease (double s) noexcept
+    {
+        rTime = std::max (0.0005, s);
+        if (stage == Stage::Release) coef = ninetyNineCoef (rTime);
+    }
 
     void setADSR (double a, double d, double s, double r) noexcept
     {
@@ -55,11 +85,8 @@ public:
     void noteOn() noexcept
     {
         stage  = Stage::Attack;
-        // Attack on CEM3310 charges toward a level slightly above 1.0, which
-        // is why Oberheim envelopes "snap" — they cross the threshold quickly
-        // even with longer attack settings.
-        target = 1.2;
-        coef   = timeToCoef (aTime);
+        target = kAttackTarget;
+        coef   = attackCoef();
     }
 
     void noteOff() noexcept
@@ -67,10 +94,11 @@ public:
         if (stage == Stage::Idle) return;
         stage  = Stage::Release;
         target = 0.0;
-        coef   = timeToCoef (rTime);
+        coef   = ninetyNineCoef (rTime);
     }
 
     bool isActive() const noexcept { return stage != Stage::Idle; }
+    Stage getStage() const noexcept { return stage; }
 
     inline double processSample() noexcept
     {
@@ -84,7 +112,7 @@ public:
                     value  = 1.0;
                     stage  = Stage::Decay;
                     target = sLvl;
-                    coef   = timeToCoef (dTime);
+                    coef   = ninetyNineCoef (dTime);
                 }
                 break;
 
@@ -99,9 +127,7 @@ public:
                 break;
 
             case Stage::Sustain:
-                // Track sustain level even if it's modulated externally
-                target = sLvl;
-                value  = sLvl;
+                value = sLvl;
                 break;
 
             case Stage::Release:
@@ -114,7 +140,7 @@ public:
                 break;
 
             case Stage::Idle:
-                value  = 0.0;
+                value = 0.0;
                 break;
         }
 
@@ -122,21 +148,30 @@ public:
     }
 
 private:
-    inline double timeToCoef (double seconds) const noexcept
+    /*  Reach the trigger threshold (1.0) in aTime seconds when charging
+        toward kAttackTarget. Solve: 1.0 = T*(1 - (1-coef)^n) for coef. */
+    inline double attackCoef() const noexcept
     {
-        // Pick coefficient so that a one-pole reaches ~99% in `seconds`.
-        // value' = value + coef * (target - value); for target=1, value=0,
-        // value(n) = 1 - (1-coef)^n; solve for n where value=0.99 -> n ~ 4.6/coef
-        const double n = std::max (1.0, seconds * sr);
-        return 1.0 - std::exp (-4.605 / n);   // ln(100)
+        const double n     = std::max (1.0, aTime * sr);
+        const double ratio = kAttackTarget / (kAttackTarget - 1.0);   // T/(T-1)
+        return 1.0 - std::exp (-std::log (ratio) / n);
     }
+
+    /*  Coefficient so a one-pole reaches 99% of its target in `seconds`. */
+    inline double ninetyNineCoef (double seconds) const noexcept
+    {
+        const double n = std::max (1.0, seconds * sr);
+        return 1.0 - std::exp (-4.605 / n);
+    }
+
+    static constexpr double kAttackTarget = 1.5;  // CEM3310-style overshoot
 
     double sr     = 44100.0;
     double value  = 0.0;
     double target = 0.0;
     double coef   = 0.0;
     double aTime  = 0.005;
-    double dTime  = 0.150;
+    double dTime  = 0.250;
     double sLvl   = 0.7;
     double rTime  = 0.250;
     Stage  stage  = Stage::Idle;

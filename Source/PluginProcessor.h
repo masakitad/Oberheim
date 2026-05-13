@@ -45,11 +45,28 @@ public:
     // Number of polyphonic voices. The OB-8 has 8.
     static constexpr int kNumVoices = 8;
 
+    // Patch / bank management. Banks of 10 patches, 12 banks = 120 patches.
+    static constexpr int kPatchesPerBank = 10;
+    static constexpr int kNumBanks       = 12;
+
+    bool loadBankFromFile (const juce::File&);
+    bool saveBankToFile   (const juce::File&) const;
+    bool loadCurrentPatchFromXml (const juce::XmlElement&);
+    void saveCurrentPatchToXml   (juce::XmlElement&, const juce::String& patchName) const;
+
+    // Currently selected patch slot (0..119); just metadata, no audio impact
+    int   currentBank    = 0;
+    int   currentProgram = 0;
+    juce::String currentPatchName { "Init Patch" };
+    juce::ValueTree bankState { "BANK" };
+
 private:
     void handleMidiEvent (const juce::MidiMessage&);
     void noteOn  (int midiNote, float velocity);
     void noteOff (int midiNote);
     void allNotesOff();
+    void resetLfoIfKeySync (bool wasIdle);
+    bool isAnyVoiceActive() const noexcept;
 
     dsp::Voice::PerVoiceParams snapshotParams() const;
 
@@ -60,8 +77,13 @@ private:
     // Global modulator
     dsp::LFO lfo;
 
-    // Pitch bend
+    // Live MIDI state
     double currentBendSemis = 0.0;
+    double currentModWheel  = 0.0;   // 0..1
+    double currentAfterT    = 0.0;   // 0..1 (channel aftertouch)
+    bool   sustainPedalDown = false;
+    juce::SortedSet<int> sustainedNotes;
+    juce::Array<int>     polyAfterTouch; // 128 entries indexed by note
 
     // Oversampling
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;

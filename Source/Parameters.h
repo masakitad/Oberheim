@@ -61,13 +61,31 @@ namespace ParamID
     static constexpr auto velToVca = "vel_to_vca";
     static constexpr auto velToVcf = "vel_to_vcf";
 
+    // Page 2 modulation
+    static constexpr auto envToVco1   = "env_to_vco1";    // semis at peak env
+    static constexpr auto envToVco2   = "env_to_vco2";
+    static constexpr auto envToPwm    = "env_to_pwm";
+    static constexpr auto atToVcf     = "at_to_vcf";      // semis at AT=1
+    static constexpr auto atToLfo     = "at_to_lfo";      // 0..1
+    static constexpr auto atToVca     = "at_to_vca";      // 0..1
+    static constexpr auto mwToVcf     = "mw_to_vcf";
+    static constexpr auto mwToLfo     = "mw_to_lfo";
+    static constexpr auto mwToVibrato = "mw_to_vibrato";  // semis at MW=1
+    static constexpr auto lfoKeySync  = "lfo_key_sync";
+
     // Global / voice
-    static constexpr auto polyMode    = "poly_mode";      // 0=Poly, 1=Unison, 2=Mono
+    static constexpr auto polyMode    = "poly_mode";      // 0=Poly,1=Uni,2=Split,3=Double,4=Mono
     static constexpr auto unisonDetune = "unison_detune";
     static constexpr auto driftDepth  = "drift_depth";
     static constexpr auto masterGain  = "master_gain";
     static constexpr auto masterTune  = "master_tune";    // cents
     static constexpr auto bendRange   = "bend_range";     // semis
+
+    // Split / Double
+    static constexpr auto splitPoint        = "split_point";        // MIDI note
+    static constexpr auto splitOctaveOffset = "split_octave";       // -2..+2
+    static constexpr auto splitDetune       = "split_detune";       // semitones
+    static constexpr auto doubleDetune      = "double_detune";      // semitones spread
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

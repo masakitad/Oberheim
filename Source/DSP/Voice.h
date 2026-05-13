@@ -73,12 +73,36 @@ public:
         double lfoToVco2Pitch = 0.0;
         double lfoToPwm       = 0.0;
 
+        // ----- Page 2: extra modulation destinations ----------------------
+        // Filter envelope -> VCO pitch / PWM (classic "Page 2" routings)
+        double envToVco1Semis = 0.0;     // -24..+24 semitones at env peak
+        double envToVco2Semis = 0.0;
+        double envToPwm       = 0.0;     // 0..0.45 added to PW at env peak
+
+        // Aftertouch routings (state value supplied per-voice below)
+        double atToVcfSemis   = 0.0;     // semitones added to cutoff at AT=1
+        double atToLfoDepth   = 0.0;     // 0..1 (multiplies LFO output)
+        double atToVca        = 0.0;     // 0..1 amplitude contribution
+
+        // Mod wheel routings (state value supplied per-voice below)
+        double mwToVcfSemis   = 0.0;
+        double mwToLfoDepth   = 0.0;     // adds to vibrato amount
+        double mwToVibratoSemis = 0.0;   // pure vibrato (LFO -> pitch via MW)
+
+        // Live state inputs from the processor
+        double aftertouch     = 0.0;     // 0..1
+        double modWheel       = 0.0;     // 0..1
+
         // Velocity-to-VCA, velocity-to-VCF
         double velToVca = 0.0;
         double velToVcf = 0.0;
 
         // Pitch bend semitones applied to both VCOs
         double pitchBendSemis = 0.0;
+
+        // Per-voice split offsets (applied externally per note)
+        double splitOctaveOffset = 0.0;  // octaves added to both VCOs
+        double splitDetuneSemis  = 0.0;  // semitones added to VCO2 only
     };
 
     void prepare (double sampleRate, uint32_t seed)
@@ -152,29 +176,48 @@ public:
 
         for (int i = 0; i < numSamples; ++i)
         {
-            const double lfo = lfoBuffer != nullptr ? static_cast<double> (lfoBuffer[i]) : 0.0;
+            const double rawLfo = lfoBuffer != nullptr ? static_cast<double> (lfoBuffer[i]) : 0.0;
 
-            // ----- Pitch in cents ---------------------------------------
+            // LFO depth modulated by aftertouch and mod wheel
+            const double lfoDepthMul = 1.0
+                                     + params.atToLfoDepth * params.aftertouch
+                                     + params.mwToLfoDepth * params.modWheel;
+            const double lfo = rawLfo * lfoDepthMul;
+
+            // ----- Pitch in semitones -----------------------------------
             const double d1 = drift1.processSample();
             const double d2 = drift2.processSample();
             const double lfoPitch1 = lfo * params.lfoToVco1Pitch;
             const double lfoPitch2 = lfo * params.lfoToVco2Pitch;
             const double bend      = params.pitchBendSemis;
 
-            const double f1 = midiToHz (currentMidiNote + 12.0 * params.vco1Octave
-                                        + d1 + lfoPitch1 + bend);
-            const double f2 = midiToHz (currentMidiNote + 12.0 * params.vco2Octave
+            // Filter env contribution at this point of the loop -- precomputed
+            // below; declared here so it can feed pitch and PWM modulation.
+            const double fe = filtEnv.processSample();
+
+            // Vibrato from mod wheel: extra LFO -> pitch routing
+            const double vibrato = rawLfo * params.mwToVibratoSemis * params.modWheel;
+
+            const double oct1 = params.vco1Octave + params.splitOctaveOffset;
+            const double oct2 = params.vco2Octave + params.splitOctaveOffset;
+
+            const double f1 = midiToHz (currentMidiNote + 12.0 * oct1
+                                        + d1 + lfoPitch1 + bend + vibrato
+                                        + params.envToVco1Semis * fe);
+            const double f2 = midiToHz (currentMidiNote + 12.0 * oct2
                                         + params.vco2DetuneSemis
-                                        + d2 + lfoPitch2 + bend);
+                                        + params.splitDetuneSemis
+                                        + d2 + lfoPitch2 + bend + vibrato
+                                        + params.envToVco2Semis * fe);
 
             vco1.setFrequency (f1);
             vco2.setFrequency (f2);
 
-            // PWM
-            const double pwmDepth1 = 0.45 * params.lfoToPwm * lfo;
-            const double pwmDepth2 = 0.45 * params.lfoToPwm * lfo;
-            vco1.setPulseWidth (params.pulseWidth1 + pwmDepth1);
-            vco2.setPulseWidth (params.pulseWidth2 + pwmDepth2);
+            // PWM: LFO depth + Filter Env depth (Page 2)
+            const double envPwm  = params.envToPwm * fe;
+            const double lfoPwm  = 0.45 * params.lfoToPwm * lfo;
+            vco1.setPulseWidth (params.pulseWidth1 + lfoPwm + envPwm);
+            vco2.setPulseWidth (params.pulseWidth2 + lfoPwm + envPwm);
 
             // ----- Oscillators ------------------------------------------
             const double o1 = vco1.processSample();
@@ -195,7 +238,7 @@ public:
                              + n  * params.levelNoise;
 
             // ----- Modulators -------------------------------------------
-            const double fe = filtEnv.processSample();
+            // (filter env already advanced above for pitch/PWM routing)
             const double ae = ampEnv.processSample();
 
             // Filter cutoff in semitones above panel value
@@ -203,8 +246,11 @@ public:
             const double envSemis = params.envAmount * fe * 84.0; // up to 7 octaves
             const double lfoSemis = params.lfoToVcf  * lfo * 36.0; // up to 3 oct
             const double velSemis = params.velToVcf  * currentVelocity * 48.0;
+            const double atSemis  = params.atToVcfSemis * params.aftertouch;
+            const double mwSemis  = params.mwToVcfSemis * params.modWheel;
             const double fc = params.cutoffHz
-                              * std::exp2 ((kbdSemis + envSemis + lfoSemis + velSemis) / 12.0);
+                              * std::exp2 ((kbdSemis + envSemis + lfoSemis
+                                            + velSemis + atSemis + mwSemis) / 12.0);
 
             vcf.setCutoff (fc);
             vcf.setResonance (params.resonance);
@@ -214,7 +260,8 @@ public:
 
             // ----- VCA --------------------------------------------------
             const double velAmp = 1.0 - params.velToVca * (1.0 - currentVelocity);
-            const double sample = filtered * ae * velAmp;
+            const double atAmp  = 1.0 + params.atToVca * params.aftertouch;
+            const double sample = filtered * ae * velAmp * atAmp;
 
             outBuffer[i] += static_cast<float> (dcb.processSample (sample));
 

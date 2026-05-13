@@ -21,17 +21,20 @@ with a focus on faithful DSP architecture rather than panel-by-panel mimicry.
 
 ## Features
 
-| Section          | Implementation                                                                 |
-|------------------|--------------------------------------------------------------------------------|
-| Polyphony        | 8 voices (Poly / Unison / Mono modes), per-voice analog drift                  |
-| Oscillators      | 2× band-limited VCOs (saw / pulse + PWM), hard sync, cross-modulation, 4× OS   |
-| Mixer            | VCO1, VCO2, Noise levels                                                       |
-| Filter           | CEM3320-style 2-pole / 4-pole low-pass, TPT/ZDF SVF, self-oscillation          |
-| Envelopes        | 2× ADSR (Filter, Amp), exponential analog curves (CEM3310-style)               |
-| LFO              | Triangle / Square / Saw / Inverse Saw / S&H, routable to VCO1, VCO2, PWM, VCF  |
-| Velocity         | Velocity → VCA, Velocity → VCF                                                 |
-| Pitch bend       | ±1..24 semitones, master tune ±1 semitone                                      |
-| Anti-aliasing    | PolyBLEP + 4× oversampling (equiripple half-band FIR)                          |
+| Section          | Implementation                                                                       |
+|------------------|--------------------------------------------------------------------------------------|
+| Polyphony        | 8 voices, **Poly / Unison / Split / Double / Mono** modes, per-voice analog drift    |
+| Oscillators      | 2× band-limited VCOs (saw / pulse + PWM), hard sync, cross-modulation, 4× OS         |
+| Mixer            | VCO1, VCO2, Noise levels                                                             |
+| Filter           | CEM3320-modelled 2/4-pole low-pass, TPT/ZDF SVF, asymmetric OTA saturation           |
+| Envelopes        | 2× ADSR (Filter, Amp), CEM3310-modelled exponential charge + attack overshoot snap   |
+| LFO              | Triangle / Square / Saw / Inverse Saw / S&H, routable + **key sync**                 |
+| Page 2 mods      | Filter Env → VCO1/VCO2/PWM, Aftertouch → VCF/LFO/VCA, Mod Wheel → VCF/LFO/Vibrato    |
+| Velocity         | Velocity → VCA, Velocity → VCF                                                       |
+| Pitch bend       | ±1..24 semitones, master tune ±1 semitone                                            |
+| Anti-aliasing    | PolyBLEP + 4× oversampling (equiripple half-band FIR)                                |
+| Patches          | 120-slot patch memory (12 banks × 10), Save / Load `.ob8bank` files                  |
+| MIDI             | CC 1/7/11/64/71-77, Channel & Poly Aftertouch, Pitch Bend, Sustain pedal             |
 
 ---
 
@@ -39,18 +42,58 @@ with a focus on faithful DSP architecture rather than panel-by-panel mimicry.
 
 * **`PolyBLEPOscillator`** – band-limited saw and pulse using the
   Välimäki/Huovilainen PolyBLEP residual, with hard-sync correction. Cross-mod
-  is implemented as linear FM into the phase increment (the standard analog
-  X-MOD topology).
-* **`StateVariableFilter`** – Vadim Zavalishin's TPT (zero-delay-feedback)
-  state-variable filter, with a soft `tanh` non-linearity in the resonance
-  feedback path. 4-pole mode cascades two identical TPT stages, matching the
-  OB-8's two-pole / four-pole switch.
-* **`Envelope`** – first-order RC-style ADSR that overshoots the attack target
-  (1.2 internal, clamped to 1.0 output) to give the Curtis CEM3310 "snap".
-* **`AnalogDrift`** – per-voice slow brown-noise drift in semitones, modelling
-  the per-VCO thermal drift on the original.
-* **`Oversampling`** – `juce::dsp::Oversampling` at 4× (configurable) with an
-  equiripple FIR half-band filter; latency-compensated.
+  is implemented as linear FM into the phase increment.
+* **`StateVariableFilter`** – Vadim Zavalishin's TPT (zero-delay-feedback) SVF
+  with **CEM3320-fitted OTA saturation**: quadratic pre-skew (~3% 2nd harmonic
+  at full level) followed by a 5th-order minimax tanh approximation, plus
+  resonance-loss compensation. 4-pole mode cascades two identical TPT stages.
+* **`Envelope`** – ADSR fitted to the CEM3310 charge/discharge behaviour: the
+  attack stage charges toward 1.5× the threshold and is clamped at 1.0,
+  reproducing the Oberheim "snap" even for long attack times. Time
+  coefficients are recomputed on the fly so live knob movements affect the
+  ongoing stage (analog-accurate behaviour).
+* **`AnalogDrift`** – per-voice slow brown-noise drift in semitones,
+  independent per oscillator, modelling thermal drift.
+* **`Oversampling`** – `juce::dsp::Oversampling` at 4×, equiripple FIR
+  half-band filter; latency-compensated.
+
+## Modes
+
+* **Poly** – 8-voice last-note-priority allocation with oldest-voice steal.
+* **Unison** – all 8 voices stack on the played note, spread by *Unison Detune*.
+* **Split** – voices 0–3 play notes below *Split Point*, voices 4–7 play above.
+  The upper half is offset by *Split Octave* / *Split Detune*.
+* **Double** – every note is voiced twice (voices 0–3 and 4–7 layered) with
+  ±½ × *Double Detune* between layers.
+* **Mono** – single-voice with re-trigger.
+
+## Patch memory
+
+* **Bank** dropdown: 12 banks (1–12), **Program**: 10 patches per bank.
+* **STORE** writes the current parameter state into the selected slot under
+  the entered name.
+* **RECALL** loads the patch from the selected slot.
+* **SAVE BANK… / LOAD BANK…** read/write `.ob8bank` XML files containing all
+  120 slots.
+* Banks are also saved as part of the host DAW's project state alongside
+  the current parameters.
+
+## MIDI mapping
+
+| CC  | Destination               |
+|-----|---------------------------|
+| 1   | Mod Wheel (depth)         |
+| 7   | Master Volume             |
+| 11  | Expression (folded into AT-to-VCA path) |
+| 64  | Sustain pedal             |
+| 71  | Resonance                 |
+| 72  | Amp Release               |
+| 73  | Amp Attack                |
+| 74  | Cutoff                    |
+| 75  | Amp Decay                 |
+| 76  | LFO Rate                  |
+| 77  | Vibrato depth             |
+| 120/123 | All Sound/Notes Off   |
 
 ---
 
@@ -116,23 +159,21 @@ sudo apt install build-essential libasound2-dev libjack-jackd2-dev \
 
 ## What is intentionally *not* in scope (yet)
 
-These were left out so the initial commit stays focused, and they are the
-most useful next steps if you want to push fidelity further:
-
-* **Patch memory** – the OB-8 stored 120 patches; here we rely on the host's
-  preset support. Easy to add an XML/JSON bank loader.
-* **Split / Double** keyboard modes – only Poly / Unison / Mono are wired up.
-  Adding Split is straightforward (two parameter banks + per-voice routing).
-* **Page-2 parameters** – the OB-8's "Page 2" introduced extra modulation
-  destinations. Add by extending `PerVoiceParams`.
-* **MIDI CC mapping** for the panel knobs.
-* **Component-level model of CEM3320** – the current SVF captures the
-  topology but not the exact OTA non-linearity. Replacing the `tanh`
-  saturation with a measured CEM3320 curve (e.g. via wave-shaping data
-  captured from a real unit) would close more of the gap.
-* **Per-voice tempco model on the envelopes** – the CEM3310 has a known
-  voltage-vs-time curve that we approximate with a one-pole. A piecewise
-  fit to the datasheet curve would be more accurate.
+* **Component-level (SPICE-style) CEM3320 model** – the current asymmetric
+  OTA fit is musically close but not bit-identical to a real chip across all
+  operating points. A SPICE simulation captured to a wavetable would close
+  the remaining gap.
+* **Per-stage CEM3310 datasheet curve** – attack/decay/release currently use
+  the same one-pole topology with different coefficients. The CEM3310's
+  decay stage has a slight curvature change near the sustain level that we
+  don't model.
+* **Sample-accurate MIDI event splitting** – MIDI events are currently
+  processed at the head of the block. For sub-block-accurate event timing
+  the rendering loop needs to be split at each event.
+* **Stereo voice panning** – the OB-8 was mono out; we duplicate to stereo.
+* **Hard-sync PolyBLEP residual** – the slave reset on hard sync uses a
+  simplified correction. A full BLEP residual at the sub-sample reset
+  position would be cleaner.
 
 ---
 
