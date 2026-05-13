@@ -4,6 +4,8 @@
 #include "GUI/OB8LookAndFeel.h"
 #include "GUI/OB8Knob.h"
 
+#include <juce_audio_utils/juce_audio_utils.h>   // MidiKeyboardComponent
+
 namespace ob8 {
 
 class OB8Editor : public juce::AudioProcessorEditor
