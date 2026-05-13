@@ -57,6 +57,18 @@ with a focus on faithful DSP architecture rather than panel-by-panel mimicry.
 * **`Oversampling`** – `juce::dsp::Oversampling` at 4×, equiripple FIR
   half-band filter; latency-compensated.
 
+## On-screen keyboard
+
+The bottom of the editor hosts a horizontal MIDI keyboard. Click with the mouse or use the **PC keyboard**:
+
+| PC key | Note |
+|---|---|
+| `A S D F G H J K L ;` | white keys (C, D, E, F, G, A, B, ...) |
+| `W E   T Y U   O P` | black keys (C#, D#, F#, G#, A#, ...) |
+| `Z` / `X` | shift play octave down / up |
+
+Mouse and PC-keyboard notes are merged into the same MIDI stream that drives the synth, so velocity / mod / sustain CCs from external MIDI work alongside them.
+
 ## Modes
 
 * **Poly** – 8-voice last-note-priority allocation with oldest-voice steal.

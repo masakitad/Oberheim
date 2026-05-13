@@ -42,6 +42,10 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
 
+    // Shared keyboard state used by the on-screen virtual keyboard and any
+    // PC-keyboard input.
+    juce::MidiKeyboardState keyboardState;
+
     // Number of polyphonic voices. The OB-8 has 8.
     static constexpr int kNumVoices = 8;
 

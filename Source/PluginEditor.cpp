@@ -3,9 +3,34 @@
 namespace ob8 {
 
 OB8Editor::OB8Editor (OB8Processor& p)
-    : juce::AudioProcessorEditor (p), processorRef (p)
+    : juce::AudioProcessorEditor (p),
+      processorRef (p),
+      keyboard (p.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
 {
     setLookAndFeel (&laf);
+
+    // Make the editor itself focus-friendly so the OS will route key events
+    // here, then forward them to the keyboard component.
+    setWantsKeyboardFocus (true);
+
+    addAndMakeVisible (keyboard);
+    keyboard.setWantsKeyboardFocus (true);
+    keyboard.setKeyWidth (22.0f);                 // pixels
+    keyboard.setAvailableRange (21, 108);         // standard 88-key span
+    keyboard.setLowestVisibleKey (36);            // start at C2
+    keyboard.setOctaveForMiddleC (4);             // C4 = MIDI 60
+    keyboard.setColour (juce::MidiKeyboardComponent::whiteNoteColourId,
+                        OB8LookAndFeel::panelCream());
+    keyboard.setColour (juce::MidiKeyboardComponent::blackNoteColourId,
+                        OB8LookAndFeel::panelDark());
+    keyboard.setColour (juce::MidiKeyboardComponent::keySeparatorLineColourId,
+                        OB8LookAndFeel::panelDark().withAlpha (0.7f));
+    keyboard.setColour (juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId,
+                        OB8LookAndFeel::panelOrange().withAlpha (0.35f));
+    keyboard.setColour (juce::MidiKeyboardComponent::keyDownOverlayColourId,
+                        OB8LookAndFeel::panelOrange().withAlpha (0.75f));
+    keyboard.setColour (juce::MidiKeyboardComponent::textLabelColourId,
+                        OB8LookAndFeel::panelDark());
 
     auto& apvts = processorRef.apvts;
 
@@ -154,12 +179,23 @@ OB8Editor::OB8Editor (OB8Processor& p)
         for (auto* c : s.children)
             addAndMakeVisible (c);
 
-    setSize (1280, 760);
+    setSize (1280, 880);
 }
 
 OB8Editor::~OB8Editor()
 {
     setLookAndFeel (nullptr);
+}
+
+void OB8Editor::visibilityChanged()
+{
+    // Once the editor is on-screen, hand keyboard focus to the on-screen
+    // keyboard so PC key events go directly to it.
+    if (isShowing())
+        juce::MessageManager::callAsync ([safe = juce::Component::SafePointer (this)]
+        {
+            if (safe != nullptr) safe->keyboard.grabKeyboardFocus();
+        });
 }
 
 void OB8Editor::populateBankCombo()
@@ -329,6 +365,13 @@ void OB8Editor::resized()
     auto bounds = getLocalBounds();
     bounds.removeFromTop (44);
     bounds = bounds.reduced (10);
+
+    // Reserve space at the bottom for the on-screen keyboard. Done first so
+    // the existing top-down section layout keeps working against `bounds`.
+    const int kKbdH = 100;
+    auto kbdBounds = bounds.removeFromBottom (kKbdH);
+    bounds.removeFromBottom (8);
+    keyboard.setBounds (kbdBounds);
 
     const int rowH1 = 230;
     const int rowH2 = 200;
