@@ -14,6 +14,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void visibilityChanged() override;
 
 private:
     struct Section
@@ -88,6 +89,12 @@ private:
     void chooseLoadBank();
 
     std::unique_ptr<juce::FileChooser> fileChooser;
+
+    // On-screen MIDI keyboard. Accepts mouse input and (when focused) PC
+    // keyboard input mapped to chromatic notes (A,S,D,F,... for naturals,
+    // W,E,T,Y,U for sharps, Z/X to change octave). Constructed in the .cpp
+    // initialiser list with the processor's MidiKeyboardState.
+    juce::MidiKeyboardComponent keyboard;
 
     std::vector<Section> sections;
 

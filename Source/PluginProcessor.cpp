@@ -389,6 +389,11 @@ void OB8Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuf
 
     buffer.clear();
 
+    // Inject events from the on-screen / PC keyboard into the MIDI buffer
+    // before we iterate through it. Pass true so externally received notes
+    // are also forwarded to any keyboard listeners (highlighting the keys).
+    keyboardState.processNextMidiBuffer (midi, 0, buffer.getNumSamples(), true);
+
     // Update LFO settings (block-rate)
     {
         const int shapeIdx = static_cast<int> (apvts.getRawParameterValue (ParamID::lfoShape)->load());
