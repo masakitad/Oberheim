@@ -387,7 +387,6 @@ void OB8Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuf
 {
     juce::ScopedNoDenormals _;
 
-    const int numSamples = buffer.getNumSamples();
     buffer.clear();
 
     // Update LFO settings (block-rate)
@@ -489,7 +488,7 @@ void OB8Processor::setStateInformation (const void* data, int sizeInBytes)
 }
 
 void OB8Processor::saveCurrentPatchToXml (juce::XmlElement& dest,
-                                          const juce::String& patchName) const
+                                          const juce::String& patchName)
 {
     dest.setAttribute ("name", patchName);
     dest.setAttribute ("version", 1);

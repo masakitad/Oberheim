@@ -341,7 +341,6 @@ void OB8Editor::resized()
     const int wXMod   = 110;
     const int wMixer  = 200;
     const int wFilter = 320;
-    const int wFEnv   = row1.getWidth() - (wVCO1 + wVCO2 + wXMod + wMixer + wFilter) - 5*8;
 
     layoutSection (sections[0], row1.removeFromLeft (wVCO1),   3);
     row1.removeFromLeft (8);
@@ -362,7 +361,6 @@ void OB8Editor::resized()
     const int wAEnv  = 240;
     const int wLfo   = 340;
     const int wVel   = 180;
-    const int wVoice = row2.getWidth() - (wAEnv + wLfo + wVel) - 3*8;
 
     layoutSection (sections[6], row2.removeFromLeft (wAEnv), 4);
     row2.removeFromLeft (8);
