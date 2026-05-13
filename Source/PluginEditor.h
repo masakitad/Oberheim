@@ -26,6 +26,7 @@ private:
     OB8Processor& processorRef;
     OB8LookAndFeel laf;
 
+    // ---- Page 1 controls ----------------------------------------------------
     // VCO 1
     std::unique_ptr<OB8Choice> vco1Oct, vco1Wave;
     std::unique_ptr<OB8Knob>   vco1Pw;
@@ -61,6 +62,32 @@ private:
     // Global
     std::unique_ptr<OB8Choice> polyMode;
     std::unique_ptr<OB8Knob>   unisonDetune, driftDepth, masterGain, masterTune, bendRange;
+
+    // ---- Page 2 controls ----------------------------------------------------
+    std::unique_ptr<OB8Knob>   envToVco1, envToVco2, envToPwm;
+    std::unique_ptr<OB8Knob>   atToVcf, atToLfo, atToVca;
+    std::unique_ptr<OB8Knob>   mwToVcf, mwToLfo, mwToVibrato;
+    std::unique_ptr<OB8Toggle> lfoKeySync;
+
+    // Split / Double
+    std::unique_ptr<OB8Knob>   splitPoint, splitDetune, doubleDetune;
+    std::unique_ptr<OB8Choice> splitOctave;
+
+    // ---- Patch management ---------------------------------------------------
+    juce::ComboBox bankCombo, programCombo;
+    juce::Label    bankLabel { {}, "BANK" }, programLabel { {}, "PROGRAM" }, patchNameLabel { {}, "NAME" };
+    juce::TextEditor patchNameEdit;
+    juce::TextButton storeBtn { "STORE" }, recallBtn { "RECALL" },
+                    saveBankBtn { "SAVE BANK..." }, loadBankBtn { "LOAD BANK..." };
+
+    void populateBankCombo();
+    void populateProgramCombo();
+    void storeCurrentPatch();
+    void recallSelectedPatch();
+    void chooseSaveBank();
+    void chooseLoadBank();
+
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     std::vector<Section> sections;
 

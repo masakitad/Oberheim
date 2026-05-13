@@ -48,9 +48,10 @@ APVTS::ParameterLayout createParameterLayout()
     using namespace ParamID;
     const juce::StringArray waves      { "Saw", "Pulse" };
     const juce::StringArray octaves    { "-2", "-1", "0", "+1", "+2" };
-    const juce::StringArray modes      { "Poly", "Unison", "Mono" };
+    const juce::StringArray modes      { "Poly", "Unison", "Split", "Double", "Mono" };
     const juce::StringArray slopes     { "2-Pole", "4-Pole" };
     const juce::StringArray lfoShapes  { "Triangle", "Square", "Saw Up", "Saw Down", "S&H" };
+    const juce::StringArray splitOcts  { "-2", "-1", "0", "+1", "+2" };
 
     // VCO 1
     layout.add (mkC (vco1Octave, "VCO 1 Octave",  octaves, 2));
@@ -103,6 +104,18 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (velToVca, "Vel -> VCA", Range (0.0f, 1.0f), 0.0f));
     layout.add (mkF (velToVcf, "Vel -> VCF", Range (0.0f, 1.0f), 0.0f));
 
+    // Page 2 modulation
+    layout.add (mkF (envToVco1,   "Env -> VCO 1",   Range (-24.0f, 24.0f), 0.0f, "st"));
+    layout.add (mkF (envToVco2,   "Env -> VCO 2",   Range (-24.0f, 24.0f), 0.0f, "st"));
+    layout.add (mkF (envToPwm,    "Env -> PWM",     Range (0.0f, 0.45f), 0.0f));
+    layout.add (mkF (atToVcf,     "AT -> VCF",      Range (-48.0f, 48.0f), 0.0f, "st"));
+    layout.add (mkF (atToLfo,     "AT -> LFO",      Range (0.0f, 1.0f), 0.0f));
+    layout.add (mkF (atToVca,     "AT -> VCA",      Range (0.0f, 0.5f), 0.0f));
+    layout.add (mkF (mwToVcf,     "MW -> VCF",      Range (-48.0f, 48.0f), 0.0f, "st"));
+    layout.add (mkF (mwToLfo,     "MW -> LFO",      Range (0.0f, 1.0f), 0.0f));
+    layout.add (mkF (mwToVibrato, "MW -> Vibrato",  Range (0.0f, 1.0f), 0.0f, "st"));
+    layout.add (mkB (lfoKeySync,  "LFO Key Sync",   false));
+
     // Global
     layout.add (mkC (polyMode,     "Mode",          modes, 0));
     layout.add (mkF (unisonDetune, "Unison Detune", Range (0.0f, 0.3f), 0.06f));
@@ -110,6 +123,12 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (masterGain,   "Master Gain",   Range (-24.0f, 6.0f), -6.0f, "dB"));
     layout.add (mkF (masterTune,   "Master Tune",   Range (-100.0f, 100.0f), 0.0f, "ct"));
     layout.add (mkF (bendRange,    "Bend Range",    Range (1.0f, 24.0f), 2.0f, "st"));
+
+    // Split / Double
+    layout.add (mkF (splitPoint,        "Split Point",     Range (24.0f, 96.0f), 60.0f));
+    layout.add (mkC (splitOctaveOffset, "Split Octave",    splitOcts, 2));
+    layout.add (mkF (splitDetune,       "Split Detune",    Range (-12.0f, 12.0f), 0.0f, "st"));
+    layout.add (mkF (doubleDetune,      "Double Detune",   Range (0.0f, 1.0f), 0.10f, "st"));
 
     return layout;
 }
