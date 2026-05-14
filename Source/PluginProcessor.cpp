@@ -71,20 +71,12 @@ OB8Processor::OB8Processor()
     // plug-in instance has something to recall straight away.
     populateFactoryBank0 (bankState);
 
-    // Auto-load patch 0 (the safe "Init Patch") so the default sound is
-    // the factory init rather than the APVTS layout defaults.
-    if (auto bank0 = bankState.getChild (0); bank0.isValid())
-    {
-        if (auto firstPatch = bank0.getChild (0); firstPatch.isValid()
-                                                  && firstPatch.getNumChildren() > 0)
-        {
-            juce::XmlElement holder ("PatchHolder");
-            holder.setAttribute ("name", firstPatch.getProperty ("name").toString());
-            if (auto x = firstPatch.getChild (0).createXml())
-                holder.addChildElement (x.release());
-            loadCurrentPatchFromXml (holder);
-        }
-    }
+    // NOTE: we intentionally do NOT auto-load patch 0 here. apvts already
+    // holds the layout defaults (which sound fine); auto-loading a patch
+    // that only specifies a subset of parameters via replaceState would
+    // wholesale-replace the APVTS state with a partial tree, leaving the
+    // unspecified parameters in an inconsistent state. Users RECALL
+    // presets explicitly from the PATCH BANK section.
 }
 
 void OB8Processor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -588,7 +580,26 @@ bool OB8Processor::loadCurrentPatchFromXml (const juce::XmlElement& src)
     const auto typeName = apvts.state.getType().toString();
     if (auto* params = src.getChildByName (typeName))
     {
-        apvts.replaceState (juce::ValueTree::fromXml (*params));
+        // Per-parameter assignment instead of apvts.replaceState(). The
+        // wholesale replaceState would overwrite the entire state tree with
+        // whatever's in `params`; any parameter not present in the patch
+        // would lose its slot and report stale / undefined values for the
+        // rest of the session. Iterating each <PARAM id=".." value=".."/>
+        // child and writing through the parameter API keeps non-specified
+        // params at their current value (which is the right thing for
+        // partial factory presets and is also correct for full user
+        // patches, since those simply touch every parameter).
+        for (auto* paramXml : params->getChildIterator())
+        {
+            if (! paramXml->hasTagName ("PARAM")) continue;
+            const auto id = paramXml->getStringAttribute ("id");
+            if (auto* p = apvts.getParameter (id))
+            {
+                const double raw = paramXml->getDoubleAttribute ("value");
+                p->setValueNotifyingHost (
+                    p->convertTo0to1 (static_cast<float> (raw)));
+            }
+        }
         currentPatchName = src.getStringAttribute ("name", "Loaded Patch");
         return true;
     }

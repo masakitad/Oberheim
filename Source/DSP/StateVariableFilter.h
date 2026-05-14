@@ -70,9 +70,13 @@ public:
     {
         const double clamped = std::clamp (r, 0.0, 1.10);
         k = 2.0 - 2.0 * clamped;
-        // Resonance loss compensation -- counteract the drop in LP gain at
-        // high Q. Empirically matched to the OB-8 panel feel.
-        resComp = 1.0 + 0.20 * clamped * clamped;
+        // Mild resonance-loss compensation. Earlier this was 0.20*r^2
+        // (giving up to ~24% input boost at full resonance), which on top
+        // of the saturator could push the integrator into hard limiting
+        // and bias the perceived loudness. 0.08 keeps the LP output
+        // roughly constant at moderate Q without driving the OTA model
+        // into its asymptote.
+        resComp = 1.0 + 0.08 * clamped * clamped;
     }
 
     inline double processSample (double x) noexcept
@@ -103,20 +107,21 @@ private:
     }
 
     /*  CEM3320-style OTA non-linearity.
-        Step 1: small quadratic pre-skew adds even-order content
-                ( ~3% second-harmonic at full-scale input ).
-        Step 2: symmetric saturation via a 5th-order minimax fit to tanh.
-                Smoothly asymptotic to +/-1 outside the modelled range. */
+        Symmetric saturation via a 5th-order minimax fit to tanh, smoothly
+        asymptotic to +/-1 outside the modelled range. The DC blocker after
+        the filter handles any residual offset.
+
+        Earlier revisions tried an "asymmetric pre-skew" via
+        `x + alpha * x * std::abs(x)` to add 2nd-harmonic content. That
+        expression is in fact perfectly symmetric (x*|x| has the same sign
+        as x, so positive and negative inputs are pushed the same distance
+        away from zero), so it never produced the intended even-order
+        colour and just stiffened the curve. Removed for now -- a real
+        asymmetric model needs an offset term like alpha*x^2, which we
+        leave for a future SPICE-fit update. */
     static inline double otaSaturate (double x) noexcept
     {
-        // Asymmetry coefficient. Measured CEM3320 chips show ~1-3 % 2nd
-        // harmonic at full level; 0.04 here matches the upper end.
-        constexpr double alpha = 0.04;
-        const double skewed = x + alpha * x * std::abs (x);
-
-        // 5th-order minimax fit to tanh on [-3, +3]; error < 5e-3.
-        // tanh(x) ~ x * (1.0 + a1*x^2) / (1.0 + b1*x^2 + b2*x^4)
-        const double xc = std::clamp (skewed, -3.5, 3.5);
+        const double xc = std::clamp (x, -3.5, 3.5);
         const double x2 = xc * xc;
         const double n  = xc * (1.0 + 0.062500 * x2);
         const double d  = 1.0 + (0.41667 + 0.0089286 * x2) * x2;

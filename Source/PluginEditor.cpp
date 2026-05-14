@@ -209,7 +209,13 @@ OB8Editor::OB8Editor (OB8Processor& p)
     };
     updateOctaveLabel();
 
-    setSize (1280, 880);
+    // Resizable so the editor fits laptop screens (the PATCH BANK row
+    // would otherwise sit below the visible area on 13" Macs). The
+    // resized() layout scales the rows proportionally inside the new
+    // bounds, so it stays usable down to the minimum size.
+    setResizable (true, true);
+    setResizeLimits (1180, 720, 1920, 1200);
+    setSize (1280, 820);
 }
 
 void OB8Editor::updateOctaveLabel()
@@ -423,7 +429,7 @@ void OB8Editor::resized()
 
     // Reserve space at the bottom for the on-screen keyboard. Done first so
     // the existing top-down section layout keeps working against `bounds`.
-    const int kKbdH = 100;
+    const int kKbdH = juce::jmin (100, juce::jmax (70, bounds.getHeight() / 9));
     auto kbdBounds = bounds.removeFromBottom (kKbdH);
 
     // Octave shift controls share the keyboard row on the left side
@@ -438,8 +444,12 @@ void OB8Editor::resized()
     bounds.removeFromBottom (8);
     keyboard.setBounds (kbdBounds);
 
-    const int rowH1 = 230;
-    const int rowH2 = 200;
+    // Allocate the three rows proportionally so the window resizes cleanly.
+    // The row weights (38, 32, 30) keep the knob clusters legible while
+    // leaving enough room for the PATCH BANK section at the bottom.
+    const int availH = bounds.getHeight() - 2 * 8;   // minus inter-row gaps
+    const int rowH1  = (availH * 38) / 100;
+    const int rowH2  = (availH * 32) / 100;
 
     // Row 1: VCO1 | VCO2 | X-MOD | MIXER | FILTER | FILTER ENV
     auto row1 = bounds.removeFromTop (rowH1);
