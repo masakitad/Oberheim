@@ -580,15 +580,19 @@ bool OB8Processor::loadCurrentPatchFromXml (const juce::XmlElement& src)
     const auto typeName = apvts.state.getType().toString();
     if (auto* params = src.getChildByName (typeName))
     {
-        // Per-parameter assignment instead of apvts.replaceState(). The
-        // wholesale replaceState would overwrite the entire state tree with
-        // whatever's in `params`; any parameter not present in the patch
-        // would lose its slot and report stale / undefined values for the
-        // rest of the session. Iterating each <PARAM id=".." value=".."/>
-        // child and writing through the parameter API keeps non-specified
-        // params at their current value (which is the right thing for
-        // partial factory presets and is also correct for full user
-        // patches, since those simply touch every parameter).
+        // Clean-load semantics: first reset every parameter to its layout
+        // default so a partial patch (e.g. a factory preset that only
+        // specifies a handful of overrides) doesn't inherit residual values
+        // from whatever was loaded previously. User patches save the full
+        // state, so this reset is harmless for them -- every parameter will
+        // be re-set immediately below.
+        for (auto* p : getParameters())
+        {
+            if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*> (p))
+                ranged->setValueNotifyingHost (ranged->getDefaultValue());
+        }
+
+        // Then apply the patch's explicit values.
         for (auto* paramXml : params->getChildIterator())
         {
             if (! paramXml->hasTagName ("PARAM")) continue;
