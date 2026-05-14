@@ -146,11 +146,26 @@ public:
 
     void startNote (int midiNote, float velocity, int order, const PerVoiceParams& p)
     {
+        const bool wasIdle = ! active;
+
         // If the voice was idle, snap the smoothed note to the new target so
         // the first note doesn't glide from 0. Otherwise keep the previous
         // value so subsequent notes glide from where the voice left off.
-        if (! active || currentSmoothedNote <= 0.5)
+        if (wasIdle || currentSmoothedNote <= 0.5)
             currentSmoothedNote = midiNote;
+
+        // Reset filter and DC blocker state on fresh activation. The DSP
+        // state would otherwise persist between notes (we don't process
+        // inactive voices), which would inject the previous note's last
+        // filter / DC output as a click at the start of the new note.
+        // Voice stealing (where wasIdle = false) intentionally preserves
+        // the state for a smoother handoff.
+        if (wasIdle)
+        {
+            vcf.reset();
+            dcb.reset();
+        }
+
         currentMidiNote = midiNote;
         currentVelocity = velocity;
         noteOnOrder     = order;

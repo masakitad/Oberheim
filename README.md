@@ -81,6 +81,25 @@ Mouse and PC-keyboard notes are merged into the same MIDI stream that drives the
   ±½ × *Double Detune* between layers.
 * **Mono** – single-voice with re-trigger.
 
+## Factory presets
+
+Bank 1 ships with 10 factory presets that you can RECALL straight away:
+
+| # | Name | Description |
+|---|---|---|
+| 1 | Init Patch | Bright saw with snappy envelope (synth's neutral state) |
+| 2 | OB Brass | Classic stacked-saws Oberheim brass |
+| 3 | Lush Strings | Heavy detune, slow attack, long release |
+| 4 | Sync Lead | Hard sync, mono, env-swept VCO2 pitch |
+| 5 | Warm Pad | Very slow A/R, LFO PWM chorus, low filter |
+| 6 | Funky Bass | Mono, lower octave, fast pluck env, kbd-tracked |
+| 7 | Bell | X-MOD inharmonic spectrum, fast decay |
+| 8 | Sweep Pad | Slow filter env sweep, long release |
+| 9 | Plucky | Short percussive pluck with velocity |
+| 10 | Acid Bass | Mono, screaming 4-pole resonance, env sweep |
+
+The factory bank is loaded into Bank 1 on a fresh plug-in instance. Patch 1 (Init Patch) is automatically recalled on start so the initial sound is musically usable. Once you STORE over a slot the factory data for that slot is replaced.
+
 ## Patch memory
 
 * **Bank** dropdown: 12 banks (1–12), **Program**: 10 patches per bank.
