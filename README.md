@@ -98,7 +98,15 @@ Bank 1 ships with 10 factory presets that you can RECALL straight away:
 | 9 | Plucky | Short percussive pluck with velocity |
 | 10 | Acid Bass | Mono, screaming 4-pole resonance, env sweep |
 
-The factory bank is loaded into Bank 1 on a fresh plug-in instance. Patch 1 (Init Patch) is automatically recalled on start so the initial sound is musically usable. Once you STORE over a slot the factory data for that slot is replaced.
+The factory bank is loaded into Bank 1 on a fresh plug-in instance. The synth starts with the parameter defaults; **to switch presets, use the PATCH BANK section** at the bottom-right of the editor:
+
+1. **BANK** dropdown -> select Bank 1
+2. **PROGRAM** dropdown -> choose the preset (1: Init Patch, 2: OB Brass, ...)
+3. Click **RECALL**
+
+Once you **STORE** over a slot the factory data for that slot is replaced.
+
+The editor window is resizable (drag the bottom-right corner). The default size is 1280x820; minimum 1180x720, so it fits on 13" laptop screens.
 
 ## Patch memory
 
