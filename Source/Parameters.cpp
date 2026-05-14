@@ -130,6 +130,10 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (splitDetune,       "Split Detune",    Range (-12.0f, 12.0f), 0.0f, "st"));
     layout.add (mkF (doubleDetune,      "Double Detune",   Range (0.0f, 1.0f), 0.10f, "st"));
 
+    // Performance
+    layout.add (mkF (glide, "Glide",   hzLog (0.001f, 2.0f), 0.001f, "s"));
+    layout.add (mkB (hold,  "Hold",    false));
+
     return layout;
 }
 

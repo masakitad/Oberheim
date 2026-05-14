@@ -103,6 +103,10 @@ public:
         // Per-voice split offsets (applied externally per note)
         double splitOctaveOffset = 0.0;  // octaves added to both VCOs
         double splitDetuneSemis  = 0.0;  // semitones added to VCO2 only
+
+        // Glide / portamento (seconds; 0 = no glide). Applied per-voice to
+        // smoothly drift currentSmoothedNote toward the target MIDI note.
+        double glideTime = 0.0;
     };
 
     void prepare (double sampleRate, uint32_t seed)
@@ -136,11 +140,17 @@ public:
     }
 
     bool isActive() const noexcept { return active; }
+    bool isReleasing() const noexcept { return ampEnv.getStage() == Envelope::Stage::Release; }
     int  getMidiNote() const noexcept { return currentMidiNote; }
     int  getNoteOnOrder() const noexcept { return noteOnOrder; }
 
     void startNote (int midiNote, float velocity, int order, const PerVoiceParams& p)
     {
+        // If the voice was idle, snap the smoothed note to the new target so
+        // the first note doesn't glide from 0. Otherwise keep the previous
+        // value so subsequent notes glide from where the voice left off.
+        if (! active || currentSmoothedNote <= 0.5)
+            currentSmoothedNote = midiNote;
         currentMidiNote = midiNote;
         currentVelocity = velocity;
         noteOnOrder     = order;
@@ -174,6 +184,13 @@ public:
     {
         applyParams (params);
 
+        // Per-block glide coefficient. 0 means glide is off (snap to target).
+        // For glide > 0 we use a one-pole that reaches 99% of the target in
+        // `glideTime` seconds.
+        const double glideCoef = (params.glideTime <= 0.0001)
+            ? 1.0
+            : (1.0 - std::exp (-4.605 / std::max (1.0, params.glideTime * sr)));
+
         for (int i = 0; i < numSamples; ++i)
         {
             const double rawLfo = lfoBuffer != nullptr ? static_cast<double> (lfoBuffer[i]) : 0.0;
@@ -198,13 +215,16 @@ public:
             // Vibrato from mod wheel: extra LFO -> pitch routing
             const double vibrato = rawLfo * params.mwToVibratoSemis * params.modWheel;
 
+            // Glide: smoothly approach the target MIDI note
+            currentSmoothedNote += glideCoef * (currentMidiNote - currentSmoothedNote);
+
             const double oct1 = params.vco1Octave + params.splitOctaveOffset;
             const double oct2 = params.vco2Octave + params.splitOctaveOffset;
 
-            const double f1 = midiToHz (currentMidiNote + 12.0 * oct1
+            const double f1 = midiToHz (currentSmoothedNote + 12.0 * oct1
                                         + d1 + lfoPitch1 + bend + vibrato
                                         + params.envToVco1Semis * fe);
-            const double f2 = midiToHz (currentMidiNote + 12.0 * oct2
+            const double f2 = midiToHz (currentSmoothedNote + 12.0 * oct2
                                         + params.vco2DetuneSemis
                                         + params.splitDetuneSemis
                                         + d2 + lfoPitch2 + bend + vibrato
@@ -241,8 +261,9 @@ public:
             // (filter env already advanced above for pitch/PWM routing)
             const double ae = ampEnv.processSample();
 
-            // Filter cutoff in semitones above panel value
-            const double kbdSemis = (currentMidiNote - 60.0) * params.kbdTrack;
+            // Filter cutoff in semitones above panel value (uses smoothed
+            // note so kbd-tracking glides too).
+            const double kbdSemis = (currentSmoothedNote - 60.0) * params.kbdTrack;
             const double envSemis = params.envAmount * fe * 84.0; // up to 7 octaves
             const double lfoSemis = params.lfoToVcf  * lfo * 36.0; // up to 3 oct
             const double velSemis = params.velToVcf  * currentVelocity * 48.0;
@@ -264,15 +285,16 @@ public:
             const double sample = filtered * ae * velAmp * atAmp;
 
             outBuffer[i] += static_cast<float> (dcb.processSample (sample));
+        }
 
-            // Voice goes inactive when amp envelope finishes its release tail
-            if (! ampEnv.isActive())
-            {
-                active = false;
-                currentMidiNote = -1;
-                // Don't break: zero contribution from here on is fine and
-                // simplifies bookkeeping in the host loop.
-            }
+        // Voice deactivation -- done ONCE per block after the inner loop has
+        // finished, not per sample. This prevents any possibility of the
+        // release tail being clipped mid-block (which would show up as a
+        // sudden cutoff before the user-set release time elapses).
+        if (! ampEnv.isActive())
+        {
+            active = false;
+            currentMidiNote = -1;
         }
     }
 
@@ -299,10 +321,11 @@ private:
     AnalogDrift           drift1, drift2;
     DCBlocker             dcb;
 
-    bool   active           = false;
-    int    currentMidiNote  = -1;
-    float  currentVelocity  = 1.0f;
-    int    noteOnOrder      = 0;
+    bool   active             = false;
+    int    currentMidiNote    = -1;
+    double currentSmoothedNote = 60.0;  // glide state in MIDI note units
+    float  currentVelocity    = 1.0f;
+    int    noteOnOrder        = 0;
 };
 
 } // namespace ob8::dsp

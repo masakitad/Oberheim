@@ -17,8 +17,9 @@ OB8Editor::OB8Editor (OB8Processor& p)
     keyboard.setWantsKeyboardFocus (true);
     keyboard.setKeyWidth (22.0f);                 // pixels
     keyboard.setAvailableRange (21, 108);         // standard 88-key span
-    keyboard.setLowestVisibleKey (36);            // start at C2
-    keyboard.setOctaveForMiddleC (4);             // C4 = MIDI 60
+    keyboard.setLowestVisibleKey (48);            // start at C3 (scientific)
+    keyboard.setOctaveForMiddleC (4);             // MIDI 60 labelled "C4"
+    keyboard.setKeyPressBaseOctave (4);           // PC 'A' key plays C3 = MIDI 48
     keyboard.setColour (juce::MidiKeyboardComponent::whiteNoteColourId,
                         OB8LookAndFeel::panelCream());
     keyboard.setColour (juce::MidiKeyboardComponent::blackNoteColourId,
@@ -93,6 +94,10 @@ OB8Editor::OB8Editor (OB8Processor& p)
     masterTune  .reset (new OB8Knob   (apvts, ParamID::masterTune,   "TUNE"));
     bendRange   .reset (new OB8Knob   (apvts, ParamID::bendRange,    "BEND"));
 
+    // Performance
+    glide.reset (new OB8Knob   (apvts, ParamID::glide, "GLIDE"));
+    hold .reset (new OB8Toggle (apvts, ParamID::hold,  "HOLD"));
+
     // Page 2
     envToVco1 .reset (new OB8Knob   (apvts, ParamID::envToVco1,   "FE -> V1"));
     envToVco2 .reset (new OB8Knob   (apvts, ParamID::envToVco2,   "FE -> V2"));
@@ -160,7 +165,8 @@ OB8Editor::OB8Editor (OB8Processor& p)
                                                 lfoToVco1.get(), lfoToVco2.get(), lfoToPwm.get() } });
     sections.push_back ({ "VELOCITY",     {}, { velToVca.get(), velToVcf.get() } });
     sections.push_back ({ "VOICE",        {}, { polyMode.get(), unisonDetune.get(), driftDepth.get(),
-                                                masterGain.get(), masterTune.get(), bendRange.get() } });
+                                                masterGain.get(), masterTune.get(), bendRange.get(),
+                                                glide.get(), hold.get() } });
 
     sections.push_back ({ "PAGE 2 - ENVELOPE & AT/MW", {},
                           { envToVco1.get(), envToVco2.get(), envToPwm.get(),
@@ -179,7 +185,40 @@ OB8Editor::OB8Editor (OB8Processor& p)
         for (auto* c : s.children)
             addAndMakeVisible (c);
 
+    // Octave shift buttons next to the keyboard
+    addAndMakeVisible (octDownBtn);
+    addAndMakeVisible (octUpBtn);
+    addAndMakeVisible (octaveLabel);
+    octaveLabel.setJustificationType (juce::Justification::centred);
+    octaveLabel.setFont (juce::Font (juce::FontOptions (14.0f).withStyle ("Bold")));
+    octaveLabel.setColour (juce::Label::textColourId, OB8LookAndFeel::panelAccent());
+
+    octDownBtn.onClick = [this]
+    {
+        pcKeyboardBaseOctave = juce::jmax (1, pcKeyboardBaseOctave - 1);
+        keyboard.setKeyPressBaseOctave (pcKeyboardBaseOctave);
+        updateOctaveLabel();
+        keyboard.grabKeyboardFocus();
+    };
+    octUpBtn.onClick = [this]
+    {
+        pcKeyboardBaseOctave = juce::jmin (8, pcKeyboardBaseOctave + 1);
+        keyboard.setKeyPressBaseOctave (pcKeyboardBaseOctave);
+        updateOctaveLabel();
+        keyboard.grabKeyboardFocus();
+    };
+    updateOctaveLabel();
+
     setSize (1280, 880);
+}
+
+void OB8Editor::updateOctaveLabel()
+{
+    // Show the octave that the PC keyboard's 'A' key plays (in scientific
+    // pitch notation, e.g. C3 when pcKeyboardBaseOctave == 4).
+    const int oct = pcKeyboardBaseOctave - 1; // setOctaveForMiddleC(4) means MIDI 60 = C4
+    octaveLabel.setText (juce::String ("C") + juce::String (oct),
+                         juce::dontSendNotification);
 }
 
 OB8Editor::~OB8Editor()
@@ -370,6 +409,16 @@ void OB8Editor::resized()
     // the existing top-down section layout keeps working against `bounds`.
     const int kKbdH = 100;
     auto kbdBounds = bounds.removeFromBottom (kKbdH);
+
+    // Octave shift controls share the keyboard row on the left side
+    auto octBounds = kbdBounds.removeFromLeft (90);
+    octBounds.reduce (4, 4);
+    auto labelStrip = octBounds.removeFromTop (24);
+    octaveLabel.setBounds (labelStrip);
+    auto btnStrip   = octBounds.removeFromTop (32);
+    octDownBtn.setBounds (btnStrip.removeFromLeft (btnStrip.getWidth() / 2).reduced (2));
+    octUpBtn  .setBounds (btnStrip.reduced (2));
+
     bounds.removeFromBottom (8);
     keyboard.setBounds (kbdBounds);
 
@@ -411,7 +460,7 @@ void OB8Editor::resized()
     row2.removeFromLeft (8);
     layoutSection (sections[8], row2.removeFromLeft (wVel),  2);
     row2.removeFromLeft (8);
-    layoutSection (sections[9], row2,                        3);
+    layoutSection (sections[9], row2,                        4);
 
     bounds.removeFromTop (8);
 
