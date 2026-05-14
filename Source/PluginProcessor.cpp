@@ -1,8 +1,47 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "FactoryPresets.h"
 #include <climits>
 
 namespace ob8 {
+
+namespace {
+/*  Build a juce::ValueTree<"Patch"> for one factory preset. The patch
+    contains a single child ValueTree of the same shape as the APVTS state
+    (one <PARAM id=".." value=".."/> per overridden parameter). */
+juce::ValueTree buildPresetPatch (const FactoryPreset& p)
+{
+    juce::ValueTree patch ("Patch");
+    patch.setProperty ("name", p.name, nullptr);
+
+    juce::ValueTree params ("PARAMETERS");
+    for (const auto& pv : p.params)
+    {
+        juce::ValueTree e ("PARAM");
+        e.setProperty ("id",    juce::String (pv.id), nullptr);
+        e.setProperty ("value", pv.value,             nullptr);
+        params.appendChild (e, nullptr);
+    }
+    patch.appendChild (params, nullptr);
+    return patch;
+}
+
+/*  Replace bank 0 (the first 10 slots) with the factory presets. */
+void populateFactoryBank0 (juce::ValueTree& bankState)
+{
+    auto bank0 = bankState.getChild (0);
+    if (! bank0.isValid()) return;
+    bank0.removeAllChildren (nullptr);
+
+    int idx = 0;
+    for (const auto& p : getFactoryPresets())
+    {
+        if (idx >= 10) break;
+        bank0.appendChild (buildPresetPatch (p), nullptr);
+        ++idx;
+    }
+}
+} // namespace
 
 OB8Processor::OB8Processor()
     : juce::AudioProcessor (BusesProperties()
@@ -26,6 +65,25 @@ OB8Processor::OB8Processor()
             bank.appendChild (patch, nullptr);
         }
         bankState.appendChild (bank, nullptr);
+    }
+
+    // Replace bank 0's "Init N" entries with factory presets so a fresh
+    // plug-in instance has something to recall straight away.
+    populateFactoryBank0 (bankState);
+
+    // Auto-load patch 0 (the safe "Init Patch") so the default sound is
+    // the factory init rather than the APVTS layout defaults.
+    if (auto bank0 = bankState.getChild (0); bank0.isValid())
+    {
+        if (auto firstPatch = bank0.getChild (0); firstPatch.isValid()
+                                                  && firstPatch.getNumChildren() > 0)
+        {
+            juce::XmlElement holder ("PatchHolder");
+            holder.setAttribute ("name", firstPatch.getProperty ("name").toString());
+            if (auto x = firstPatch.getChild (0).createXml())
+                holder.addChildElement (x.release());
+            loadCurrentPatchFromXml (holder);
+        }
     }
 }
 

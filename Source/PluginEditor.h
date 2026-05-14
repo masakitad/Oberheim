@@ -8,6 +8,21 @@
 
 namespace ob8 {
 
+/*
+    JUCE's MidiKeyboardComponent only handles PC keyboard input while it
+    itself has focus -- so clicking a knob or combo box makes the on-screen
+    keyboard stop responding. We subclass it just to bring its protected
+    keyPressed / keyStateChanged overrides up to public access so the
+    editor can forward unhandled key events from any focused descendant.
+*/
+class FocusableKeyboard : public juce::MidiKeyboardComponent
+{
+public:
+    using juce::MidiKeyboardComponent::MidiKeyboardComponent;
+    using juce::MidiKeyboardComponent::keyPressed;
+    using juce::MidiKeyboardComponent::keyStateChanged;
+};
+
 class OB8Editor : public juce::AudioProcessorEditor
 {
 public:
@@ -17,6 +32,8 @@ public:
     void paint (juce::Graphics&) override;
     void resized() override;
     void visibilityChanged() override;
+    bool keyPressed (const juce::KeyPress&) override;
+    bool keyStateChanged (bool isKeyDown) override;
 
 private:
     struct Section
@@ -102,11 +119,12 @@ private:
 
     std::unique_ptr<juce::FileChooser> fileChooser;
 
-    // On-screen MIDI keyboard. Accepts mouse input and (when focused) PC
-    // keyboard input mapped to chromatic notes (A,S,D,F,... for naturals,
-    // W,E,T,Y,U for sharps, Z/X to change octave). Constructed in the .cpp
-    // initialiser list with the processor's MidiKeyboardState.
-    juce::MidiKeyboardComponent keyboard;
+    // On-screen MIDI keyboard. Accepts mouse input and (via key forwarding
+    // from the editor) PC keyboard input mapped to chromatic notes
+    // (A,S,D,F,... for naturals, W,E,T,Y,U for sharps, Z/X to change
+    // octave). Constructed in the .cpp initialiser list with the
+    // processor's MidiKeyboardState.
+    FocusableKeyboard keyboard;
 
     std::vector<Section> sections;
 

@@ -229,12 +229,28 @@ OB8Editor::~OB8Editor()
 void OB8Editor::visibilityChanged()
 {
     // Once the editor is on-screen, hand keyboard focus to the on-screen
-    // keyboard so PC key events go directly to it.
+    // keyboard so PC key events go directly to it. Once the user clicks
+    // anywhere else, focus moves away -- key forwarding (below) covers
+    // the rest.
     if (isShowing())
         juce::MessageManager::callAsync ([safe = juce::Component::SafePointer (this)]
         {
             if (safe != nullptr) safe->keyboard.grabKeyboardFocus();
         });
+}
+
+bool OB8Editor::keyPressed (const juce::KeyPress& key)
+{
+    // Forward A..K, W..U, Z/X etc. to the keyboard component even when
+    // some child (knob, combo box) currently has keyboard focus. JUCE
+    // propagates unhandled keys up through the parent chain to this
+    // override; we just hand them back to the keyboard.
+    return keyboard.keyPressed (key);
+}
+
+bool OB8Editor::keyStateChanged (bool isKeyDown)
+{
+    return keyboard.keyStateChanged (isKeyDown);
 }
 
 void OB8Editor::populateBankCombo()
