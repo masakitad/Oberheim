@@ -76,6 +76,16 @@ private:
     std::unique_ptr<OB8Knob>   splitPoint, splitDetune, doubleDetune;
     std::unique_ptr<OB8Choice> splitOctave;
 
+    // Performance
+    std::unique_ptr<OB8Knob>   glide;
+    std::unique_ptr<OB8Toggle> hold;
+
+    // Keyboard octave shift UI
+    juce::TextButton  octDownBtn { "<" }, octUpBtn { ">" };
+    juce::Label       octaveLabel { {}, "C3" };
+    int               pcKeyboardBaseOctave { 4 };  // makes 'A' = MIDI 48 = C3
+    void updateOctaveLabel();
+
     // ---- Patch management ---------------------------------------------------
     juce::ComboBox bankCombo, programCombo;
     juce::Label    bankLabel { {}, "BANK" }, programLabel { {}, "PROGRAM" }, patchNameLabel { {}, "NAME" };

@@ -86,6 +86,10 @@ namespace ParamID
     static constexpr auto splitOctaveOffset = "split_octave";       // -2..+2
     static constexpr auto splitDetune       = "split_detune";       // semitones
     static constexpr auto doubleDetune      = "double_detune";      // semitones spread
+
+    // Performance
+    static constexpr auto glide             = "glide";              // seconds (0..2)
+    static constexpr auto hold              = "hold";               // bool (latches notes)
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

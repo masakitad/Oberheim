@@ -35,6 +35,7 @@ with a focus on faithful DSP architecture rather than panel-by-panel mimicry.
 | Anti-aliasing    | PolyBLEP + 4× oversampling (equiripple half-band FIR)                                |
 | Patches          | 120-slot patch memory (12 banks × 10), Save / Load `.ob8bank` files                  |
 | MIDI             | CC 1/7/11/64/71-77, Channel & Poly Aftertouch, Pitch Bend, Sustain pedal             |
+| Performance      | **Glide** (portamento, 1 ms - 2 s), **Hold** (latches notes until released)          |
 
 ---
 
@@ -59,15 +60,16 @@ with a focus on faithful DSP architecture rather than panel-by-panel mimicry.
 
 ## On-screen keyboard
 
-The bottom of the editor hosts a horizontal MIDI keyboard. Click with the mouse or use the **PC keyboard**:
+The bottom of the editor hosts a horizontal MIDI keyboard, starting at **C3 (scientific notation, MIDI 48)**. Click with the mouse or use the **PC keyboard**:
 
 | PC key | Note |
 |---|---|
-| `A S D F G H J K L ;` | white keys (C, D, E, F, G, A, B, ...) |
-| `W E   T Y U   O P` | black keys (C#, D#, F#, G#, A#, ...) |
-| `Z` / `X` | shift play octave down / up |
+| `A S D F G H J K L ;` | white keys (C3, D3, E3, F3, G3, A3, B3, ...) |
+| `W E   T Y U   O P` | black keys (C#3, D#3, F#3, G#3, A#3, ...) |
+| `Z` / `X` | shift play octave down / up (JUCE built-in) |
+| **`<` / `>` buttons** | shift octave (visible on screen, syncs with label) |
 
-Mouse and PC-keyboard notes are merged into the same MIDI stream that drives the synth, so velocity / mod / sustain CCs from external MIDI work alongside them.
+Mouse and PC-keyboard notes are merged into the same MIDI stream that drives the synth, so velocity / mod / sustain CCs from external MIDI work alongside them. The on-screen keyboard also highlights notes played by external MIDI.
 
 ## Modes
 

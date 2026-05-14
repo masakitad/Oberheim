@@ -142,6 +142,8 @@ dsp::Voice::PerVoiceParams OB8Processor::snapshotParams() const
 
     p.pitchBendSemis = currentBendSemis + get (ParamID::masterTune) * 0.01;
 
+    p.glideTime = get (ParamID::glide);
+
     return p;
 }
 
@@ -153,7 +155,8 @@ void OB8Processor::handleMidiEvent (const juce::MidiMessage& msg)
     }
     else if (msg.isNoteOff())
     {
-        if (sustainPedalDown)
+        const bool holdOn = apvts.getRawParameterValue (ParamID::hold)->load() > 0.5f;
+        if (sustainPedalDown || holdOn)
             sustainedNotes.add (msg.getNoteNumber());
         else
             noteOff (msg.getNoteNumber());
@@ -205,8 +208,12 @@ void OB8Processor::handleMidiEvent (const juce::MidiMessage& msg)
                 sustainPedalDown = val >= 64;
                 if (! sustainPedalDown)
                 {
-                    for (int note : sustainedNotes) noteOff (note);
-                    sustainedNotes.clear();
+                    const bool holdOn = apvts.getRawParameterValue (ParamID::hold)->load() > 0.5f;
+                    if (! holdOn)
+                    {
+                        for (int note : sustainedNotes) noteOff (note);
+                        sustainedNotes.clear();
+                    }
                 }
                 break;
             case 71:   // Resonance
@@ -268,24 +275,30 @@ void OB8Processor::noteOn (int midiNote, float velocity)
     ++noteOnCounter;
     resetLfoIfKeySync (wasIdle);
 
-    auto stealOldest = [&]() -> int
-    {
-        int oldest = INT_MAX, target = 0;
-        for (int i = 0; i < kNumVoices; ++i)
-        {
-            if (voices[i].getNoteOnOrder() < oldest)
-            {
-                oldest = voices[i].getNoteOnOrder();
-                target = i;
-            }
-        }
-        return target;
-    };
-
+    // Voice stealing policy:
+    //   1) Free voice (inactive) if available.
+    //   2) Otherwise prefer a voice currently in Release stage (its envelope
+    //      is already letting go, so stealing it is least audible).
+    //   3) Otherwise steal the oldest voice (lowest note-on order).
     auto findFreeOrSteal = [&] (int firstIdx, int lastIdx) -> int
     {
+        // Pass 1: a truly free voice
         for (int i = firstIdx; i <= lastIdx; ++i)
             if (! voices[i].isActive()) return i;
+
+        // Pass 2: a voice that is already releasing (oldest one)
+        int oldestRel = INT_MAX, relIdx = -1;
+        for (int i = firstIdx; i <= lastIdx; ++i)
+        {
+            if (voices[i].isReleasing() && voices[i].getNoteOnOrder() < oldestRel)
+            {
+                oldestRel = voices[i].getNoteOnOrder();
+                relIdx    = i;
+            }
+        }
+        if (relIdx >= 0) return relIdx;
+
+        // Pass 3: oldest sustaining/active voice
         int oldest = INT_MAX, target = firstIdx;
         for (int i = firstIdx; i <= lastIdx; ++i)
         {
@@ -297,6 +310,7 @@ void OB8Processor::noteOn (int midiNote, float velocity)
         }
         return target;
     };
+
 
     if (mode == 1)        // Unison: all 8 voices on the same note
     {
@@ -354,13 +368,8 @@ void OB8Processor::noteOn (int midiNote, float velocity)
         return;
     }
 
-    // Mode 0: Poly
-    int target = -1;
-    for (int i = 0; i < kNumVoices; ++i)
-    {
-        if (! voices[i].isActive()) { target = i; break; }
-    }
-    if (target < 0) target = stealOldest();
+    // Mode 0: Poly -- one voice per note, with smart stealing
+    const int target = findFreeOrSteal (0, kNumVoices - 1);
     voices[target].startNote (midiNote, velocity, noteOnCounter, p);
 }
 
@@ -406,6 +415,18 @@ void OB8Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuf
     // OB-8 behaviours.
     for (const auto md : midi)
         handleMidiEvent (md.getMessage());
+
+    // If Hold was toggled OFF (and the pedal isn't down), release any notes
+    // currently being held in the sustained-notes set. Polled here so the
+    // user's panel toggle takes effect on the next block.
+    {
+        const bool holdOn = apvts.getRawParameterValue (ParamID::hold)->load() > 0.5f;
+        if (! holdOn && ! sustainPedalDown && ! sustainedNotes.isEmpty())
+        {
+            for (int note : sustainedNotes) noteOff (note);
+            sustainedNotes.clear();
+        }
+    }
 
     // ---- Upsample silence to obtain a properly sized OS-rate block.
     // We then overwrite that block with our synthesised audio and ask the

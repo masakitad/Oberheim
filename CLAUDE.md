@@ -83,6 +83,25 @@ error: 'this' argument to member function 'copyState' has type
 
 `Voice.h` の `PerVoiceParams` が Voice ↔ Processor の唯一の I/F。新しいモジュレーション先を増やす時はここに field を足し、`snapshotParams()` で値を埋め、`renderAdd` で使う。
 
+### 5. Voice deactivation は **ブロック後** にやる
+
+リリース中の音切れを防ぐため、`Voice::renderAdd` のサンプル内ループでは `active = false` にしない。ループが完了した **後** に一度だけチェックする:
+
+```cpp
+for (int i = 0; i < numSamples; ++i) { ... }
+if (! ampEnv.isActive()) { active = false; currentMidiNote = -1; }
+```
+
+サンプル内で deactivate すると、その後のサンプルで「最後のテール」が描画されない / 音切れの原因になる可能性あり。
+
+### 6. Voice stealing は Release 中の voice を最優先で奪う
+
+`PluginProcessor.cpp::findFreeOrSteal` の 3 段階優先順位:
+
+1. inactive な voice
+2. Release ステージ中の voice (oldest)
+3. それ以外の oldest voice
+
 ---
 
 ## GUI レイアウト
@@ -121,6 +140,13 @@ error: 'this' argument to member function 'copyState' has type
 - `keyboardState.processNextMidiBuffer` で画面鍵盤を merge
 
 新しい CC を追加する時は `handleMidiEvent` の `switch (cc)` に case を足す。
+
+### Hold / Sustain pedal
+
+両方とも `sustainedNotes` (juce::SortedSet) に release 予定の note を貯める。
+
+- **Sustain pedal (CC 64)**: 押されている間 noteOff を保留、離されたら (Hold が ON でなければ) 蓄積した note を全部 noteOff
+- **Hold (panel toggle)**: 同様のロジック。pedal の代替。Hold が OFF になった瞬間は `processBlock` の冒頭でポーリングして `sustainedNotes` を解放
 
 ---
 
