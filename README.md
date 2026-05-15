@@ -138,6 +138,20 @@ The editor window is resizable (drag the bottom-right corner). The default size 
 
 ---
 
+## Linting / formatting
+
+The project ships with a `.clang-format` (JUCE-style) and a `.clang-tidy`. Both are picked up automatically by editors and language servers; the CMake configure also generates `build/compile_commands.json` so clang-tidy can find the include paths.
+
+```sh
+# After `cmake -B build` so the compile-commands DB exists:
+
+cmake --build build --target format         # rewrites Source/ in place
+cmake --build build --target format-check   # dry-run; fails on diffs
+cmake --build build --target tidy           # full clang-tidy pass
+```
+
+`format-check` / `tidy` exit non-zero on findings -- handy for a pre-commit hook or a CI step. If `clang-format` / `clang-tidy` aren't installed (e.g. `brew install llvm`), the targets simply aren't created and the rest of the build works as before.
+
 ## Build
 
 JUCE 8.0.4 is fetched automatically via CMake `FetchContent`. You need a
