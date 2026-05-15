@@ -154,22 +154,28 @@ public:
         if (wasIdle || currentSmoothedNote <= 0.5)
             currentSmoothedNote = midiNote;
 
-        // Reset filter and DC blocker state on fresh activation. The DSP
-        // state would otherwise persist between notes (we don't process
-        // inactive voices), which would inject the previous note's last
-        // filter / DC output as a click at the start of the new note.
-        // Voice stealing (where wasIdle = false) intentionally preserves
-        // the state for a smoother handoff.
-        if (wasIdle)
-        {
-            vcf.reset();
-            dcb.reset();
-        }
+        // NOTE: a previous revision used to vcf.reset() / dcb.reset() here
+        // (when wasIdle == true) to clear "frozen" filter state inherited
+        // from the previous note. That fixed one click but introduced a
+        // worse one: with the filter integrators forced to zero, low-Q /
+        // low-cutoff patches needed a few milliseconds for the state to
+        // settle to the steady-state response of the new oscillator input,
+        // and that settle was audible. Real analog filters never reset --
+        // they integrate continuously -- so we now preserve the state.
+        // The brief fade-in below masks the (very small) discontinuity
+        // between the previous frozen state and the new audio.
 
         currentMidiNote = midiNote;
         currentVelocity = velocity;
         noteOnOrder     = order;
         active          = true;
+
+        // 64-sample anti-click fade-in (~0.7 ms at the host rate, ~0.18 ms
+        // at the 4x internal rate). Multiplies the output for the first N
+        // samples of the new note so any tiny transient at startup is
+        // smoothed away. Inaudible on its own; just there for safety.
+        fadeInCountdown = 64;
+
         applyParams (p);
         ampEnv.noteOn();
         filtEnv.noteOn();
@@ -297,7 +303,19 @@ public:
             // ----- VCA --------------------------------------------------
             const double velAmp = 1.0 - params.velToVca * (1.0 - currentVelocity);
             const double atAmp  = 1.0 + params.atToVca * params.aftertouch;
-            const double sample = filtered * ae * velAmp * atAmp;
+
+            // 64-sample anti-click fade-in applied after startNote. Multiplies
+            // the first samples of a fresh voice by a 0..1 ramp so any small
+            // transient at activation (filter state mismatch, oscillator
+            // phase jump from the frozen idle position) is smoothed away.
+            double fadeFactor = 1.0;
+            if (fadeInCountdown > 0)
+            {
+                fadeFactor = 1.0 - static_cast<double> (fadeInCountdown) / 64.0;
+                --fadeInCountdown;
+            }
+
+            const double sample = filtered * ae * velAmp * atAmp * fadeFactor;
 
             outBuffer[i] += static_cast<float> (dcb.processSample (sample));
         }
@@ -341,6 +359,7 @@ private:
     double currentSmoothedNote = 60.0;  // glide state in MIDI note units
     float  currentVelocity    = 1.0f;
     int    noteOnOrder        = 0;
+    int    fadeInCountdown    = 0;
 };
 
 } // namespace ob8::dsp
