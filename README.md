@@ -138,6 +138,25 @@ The editor window is resizable (drag the bottom-right corner). The default size 
 
 ---
 
+## Distributing the standalone to other Macs
+
+A self-built `.app` only runs on the machine that built it because the ad-hoc signature applied at build time isn't trusted by other Macs and the file picks up a `com.apple.quarantine` attribute on transfer. To make a bundle that a recipient can use:
+
+```sh
+cmake --build build --target dist        # writes build/dist/OB-8 Native/
+cmake --build build --target dist-zip    # writes build/dist/OB-8 Native.zip
+```
+
+`build/dist/OB-8 Native/` contains three things:
+
+- **`OB-8 Native.app`** -- the standalone bundle
+- **`install.command`** -- a double-clickable shell script that, on the recipient's Mac, runs `xattr -cr` and `codesign --force --deep --sign -` against the `.app` so Gatekeeper lets it open. The script also offers to copy the app into `/Applications`.
+- **`お読みください.txt`** -- Japanese instructions (also has command-line fall-back instructions).
+
+Send the folder via AirDrop / a zip / a USB stick. The recipient double-clicks `install.command` once and then the `.app` runs like any other application.
+
+This is the "free" distribution path (no Apple Developer account needed). For a polished install with no warnings at all you'd need a Developer ID Application certificate and Apple Notarization; see the macOS Apple Developer docs.
+
 ## Linting / formatting
 
 The project ships with a `.clang-format` (JUCE-style) and a `.clang-tidy`. Both are picked up automatically by editors and language servers; the CMake configure also generates `build/compile_commands.json` so clang-tidy can find the include paths.

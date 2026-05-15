@@ -14,6 +14,25 @@
 
 ---
 
+## 配布
+
+別の Mac に渡すと、ad-hoc 署名は通用せず Gatekeeper にブロックされる。`dist/install.command` を同梱して受け取った人が一度ダブルクリックする方式を採用している。
+
+```sh
+cmake --build build --target dist        # build/dist/OB-8 Native/ を生成
+cmake --build build --target dist-zip    # build/dist/OB-8 Native.zip を生成
+```
+
+`build/dist/OB-8 Native/` に入るもの:
+
+- `OB-8 Native.app` (ad-hoc 署名済み)
+- `install.command` (受け取った Mac で xattr -cr + codesign を打ち直す)
+- `お読みください.txt` (日本語インストール手順)
+
+公証 (notarytool + stapler) なしで配るための簡易ルート。Developer ID + notarize する場合は別途。
+
+---
+
 ## Lint / Format
 
 JUCE スタイルの `.clang-format` と DSP コード向けにチューニングした `.clang-tidy` がリポジトリ直下にある。CMake が `compile_commands.json` を吐くので clang-tidy がそのまま動く。
