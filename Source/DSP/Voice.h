@@ -154,29 +154,33 @@ public:
         if (wasIdle || currentSmoothedNote <= 0.5)
             currentSmoothedNote = midiNote;
 
-        // NOTE: a previous revision used to vcf.reset() / dcb.reset() here
-        // (when wasIdle == true) to clear "frozen" filter state inherited
-        // from the previous note. That fixed one click but introduced a
-        // worse one: with the filter integrators forced to zero, low-Q /
-        // low-cutoff patches needed a few milliseconds for the state to
-        // settle to the steady-state response of the new oscillator input,
-        // and that settle was audible. Real analog filters never reset --
-        // they integrate continuously -- so we now preserve the state.
-        // The brief fade-in below masks the (very small) discontinuity
-        // between the previous frozen state and the new audio.
-
         currentMidiNote = midiNote;
         currentVelocity = velocity;
         noteOnOrder     = order;
         active          = true;
 
-        // 64-sample anti-click fade-in (~0.7 ms at the host rate, ~0.18 ms
-        // at the 4x internal rate). Multiplies the output for the first N
-        // samples of the new note so any tiny transient at startup is
-        // smoothed away. Inaudible on its own; just there for safety.
+        applyParams (p);
+
+        // Pre-settle the filter for previously-idle voices.
+        // Without this, low-cutoff patches show a ~1 ms filter transient
+        // on note-on as the integrator state climbs to the steady-state
+        // response of the new oscillator input. For single notes a short
+        // fade-in masks it; for chords four-plus simultaneous transients
+        // sum and become audible despite the per-voice fade. We run the
+        // OSC + VCF pipeline for 256 internal samples here (output
+        // discarded), advancing only the local DSP state. By the time
+        // renderAdd's inner loop produces its first audible sample, the
+        // filter is already at the correct steady-state for the patch.
+        if (wasIdle)
+        {
+            preSettleFilter (p);
+        }
+
+        // Short 64-sample fade-in as a final safety net. Inaudible on its
+        // own; only there to soften any residual discontinuity (notably
+        // for stolen voices where pre-settle is skipped).
         fadeInCountdown = 64;
 
-        applyParams (p);
         ampEnv.noteOn();
         filtEnv.noteOn();
     }
@@ -332,6 +336,45 @@ public:
     }
 
 private:
+    /*  Run the OSC + filter pipeline for `kPreSettleSamples` internal samples
+        with the new patch's frequencies, mixer levels and filter coefficients
+        but with output discarded. This brings the filter integrators to the
+        steady-state response of the current oscillator output so the first
+        audible sample of the note is already at the correct level. Without
+        this, low-cutoff patches show a ~1 ms transient that's masked by the
+        fade-in for single notes but audible when several voices' transients
+        sum on a chord attack. */
+    void preSettleFilter (const PerVoiceParams& p)
+    {
+        const double oct1 = p.vco1Octave + p.splitOctaveOffset;
+        const double oct2 = p.vco2Octave + p.splitOctaveOffset;
+
+        vco1.setFrequency (midiToHz (currentMidiNote + 12.0 * oct1));
+        vco2.setFrequency (midiToHz (currentMidiNote + 12.0 * oct2
+                                     + p.vco2DetuneSemis + p.splitDetuneSemis));
+        vco1.setPulseWidth (p.pulseWidth1);
+        vco2.setPulseWidth (p.pulseWidth2);
+
+        // Base filter coefficients (no env / LFO / kbd track yet; the loop's
+        // job is to settle the integrators, not to reproduce per-sample
+        // modulation exactly).
+        const double kbdSemis = (currentSmoothedNote - 60.0) * p.kbdTrack;
+        const double fc = p.cutoffHz * std::exp2 (kbdSemis / 12.0);
+        vcf.setCutoff    (fc);
+        vcf.setResonance (p.resonance);
+        vcf.setSlope     (p.filterSlope);
+
+        constexpr int kPreSettleSamples = 256;
+        for (int i = 0; i < kPreSettleSamples; ++i)
+        {
+            const double o1 = vco1.processSample();
+            if (p.sync) vco2.hardSync (vco1.wrappedThisSample(), 0.0);
+            const double o2 = vco2.processSample (p.xModAmount * 0.002 * o1);
+            const double mix = o1 * p.levelVco1 + o2 * p.levelVco2;
+            vcf.processSample (mix);
+        }
+    }
+
     void applyParams (const PerVoiceParams& p)
     {
         vco1.setWave (p.vco1Wave);

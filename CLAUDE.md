@@ -102,9 +102,11 @@ error: 'this' argument to member function 'copyState' has type
 
 ### 4.5 Filter / DC blocker は note-on で reset しない
 
-VCF / DCBlocker の `reset()` を `Voice::startNote` で呼ばない。実機 OB-8 はアナログ積分器が常時動作しているため state リセットの概念が無い。digital で reset = 0 から再開すると、低カットオフ時にフィルタが新規入力に対する steady-state に追従するまでの数 ms が「立ち上がり transient」として聞こえる。状態を持ち越して連続させ、必要なら voice 側で短い fade-in を併用して隠す。
+VCF / DCBlocker の `reset()` を `Voice::startNote` で呼ばない。実機 OB-8 はアナログ積分器が常時動作しているため state リセットの概念が無い。digital で reset = 0 から再開すると、低カットオフ時にフィルタが新規入力に対する steady-state に追従するまでの数 ms が「立ち上がり transient」として聞こえる。
 
-`Voice` の `fadeInCountdown` が 64 サンプル (約 0.7 ms @ host rate) の anti-click ramp を提供している。
+代わりに **previously-idle voice では `preSettleFilter` で内部的に 256 サンプル先回し処理してフィルタを定常応答に持っていく** (出力は捨てる)。これで chord attack 時に複数 voice の transient が重なって露呈する click も消える。
+
+最後の安全網として `fadeInCountdown = 64` も入れているが、これは voice stealing の場合 (pre-settle を skip) を主に守るためのもの。
 
 ### 5. Voice deactivation は **ブロック後** にやる
 
