@@ -6,6 +6,10 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Emit compile_commands.json so clang-tidy / IDEs / language servers can
+# find the right -I / -D flags for each source file.
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "" FORCE)
+
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Release)
 endif()
@@ -101,6 +105,48 @@ target_link_libraries(OB8Native PRIVATE
 )
 
 target_include_directories(OB8Native PRIVATE Source)
+
+# ---- Linting / formatting ----------------------------------------------------
+# Manual-invoke targets so the regular `cmake --build` cycle stays fast.
+# Both rely on the project-root .clang-format / .clang-tidy.
+file(GLOB_RECURSE OB8_LINT_SOURCES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.h"
+    "${CMAKE_CURRENT_SOURCE_DIR}/Source/*.hpp"
+)
+
+find_program(OB8_CLANG_FORMAT NAMES clang-format)
+if(OB8_CLANG_FORMAT)
+    # `cmake --build build --target format`        -> rewrite files in place
+    # `cmake --build build --target format-check`  -> report and fail on diffs
+    add_custom_target(format
+        COMMAND ${OB8_CLANG_FORMAT} -i --style=file ${OB8_LINT_SOURCES}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Running clang-format on ${CMAKE_CURRENT_SOURCE_DIR}/Source"
+        VERBATIM
+    )
+    add_custom_target(format-check
+        COMMAND ${OB8_CLANG_FORMAT} --dry-run --Werror --style=file ${OB8_LINT_SOURCES}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Checking clang-format compliance"
+        VERBATIM
+    )
+endif()
+
+find_program(OB8_CLANG_TIDY NAMES clang-tidy)
+if(OB8_CLANG_TIDY)
+    # `cmake --build build --target tidy` -> run clang-tidy across our sources
+    # using build/compile_commands.json for accurate include paths.
+    add_custom_target(tidy
+        COMMAND ${OB8_CLANG_TIDY}
+                -p ${CMAKE_CURRENT_BINARY_DIR}
+                --quiet
+                ${OB8_LINT_SOURCES}
+        WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+        COMMENT "Running clang-tidy across Source/"
+        VERBATIM
+    )
+endif()
 
 # ---- macOS post-build: strip xattrs and ad-hoc codesign all bundles ----------
 # Locally-built JUCE bundles have no signature, so Gatekeeper refuses to open

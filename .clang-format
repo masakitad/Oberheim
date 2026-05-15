@@ -1,0 +1,74 @@
+# JUCE-compatible C++ style for OB-8 Native.
+#
+# Run from the project root:
+#   find Source -type f \( -name '*.cpp' -o -name '*.h' \) -print0 \
+#     | xargs -0 clang-format -i
+#
+# The repo's existing code follows JUCE conventions: spaces before
+# parentheses in function calls (`setSize (1280, 880)`), braces on a new
+# line (Allman), 4-space indent, no namespace indent. Stick to those so
+# diffs stay readable.
+
+---
+Language:        Cpp
+BasedOnStyle:    LLVM
+
+# Indentation
+IndentWidth:                4
+ContinuationIndentWidth:    4
+TabWidth:                   4
+UseTab:                     Never
+AccessModifierOffset:       -4
+NamespaceIndentation:       None
+
+# Braces (Allman, like JUCE)
+BreakBeforeBraces:                  Allman
+AllowShortFunctionsOnASingleLine:   Inline
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine:       false
+AllowShortCaseLabelsOnASingleLine:  false
+
+# Spaces -- JUCE style: space before function-call parentheses
+SpaceBeforeParens:                          ControlStatementsExceptControlMacros
+SpaceBeforeCpp11BracedList:                 true
+SpaceInEmptyBlock:                          false
+SpacesInParentheses:                        false
+SpacesInSquareBrackets:                     false
+SpaceAfterTemplateKeyword:                  true
+SpaceBeforeAssignmentOperators:             true
+SpaceAfterCStyleCast:                       false
+SpaceBeforeRangeBasedForLoopColon:          true
+SpaceAroundPointerQualifiers:               Default
+
+# Column / wrapping
+ColumnLimit:                100
+ReflowComments:             true
+
+# Pointer / reference alignment
+PointerAlignment:           Left
+DerivePointerAlignment:     false
+
+# Includes -- keep our handwritten ordering; don't shuffle JUCE module
+# headers around <climits> etc.
+SortIncludes:               Never
+IncludeBlocks:              Preserve
+
+# Misc
+FixNamespaceComments:       true
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep:        2
+Standard:                   c++20
+
+# Allow JUCE-style `if (x) doStuff();` when written explicitly
+# (we don't reflow them).
+AlignTrailingComments:      true
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+
+# Constructor initialisers like JUCE writes them:
+#   OB8Editor(...)
+#       : juce::AudioProcessorEditor(p),
+#         processorRef(p)
+ConstructorInitializerIndentWidth:          6
+BreakConstructorInitializers:               BeforeComma
+ConstructorInitializerAllOnOneLineOrOnePerLine: false

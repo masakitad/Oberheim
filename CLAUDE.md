@@ -14,6 +14,23 @@
 
 ---
 
+## Lint / Format
+
+JUCE スタイルの `.clang-format` と DSP コード向けにチューニングした `.clang-tidy` がリポジトリ直下にある。CMake が `compile_commands.json` を吐くので clang-tidy がそのまま動く。
+
+```sh
+cmake -B build  # compile_commands.json を生成
+cmake --build build --target format         # Source/ を in-place で整形
+cmake --build build --target format-check   # dry-run、差分があれば失敗
+cmake --build build --target tidy           # clang-tidy パス
+```
+
+`clang-format` / `clang-tidy` 未インストール時はターゲットそのものが生成されないため、ビルドは壊れない (`brew install llvm` で導入可能)。
+
+`bugprone-*` `clang-analyzer-*` `cert-*` 系は warning-as-error。スタイル系 (readability, modernize) は warning にとどめて opinionated にしない。
+
+---
+
 ## ビルド (macOS)
 
 ```sh
