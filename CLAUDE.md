@@ -83,6 +83,12 @@ error: 'this' argument to member function 'copyState' has type
 
 `Voice.h` の `PerVoiceParams` が Voice ↔ Processor の唯一の I/F。新しいモジュレーション先を増やす時はここに field を足し、`snapshotParams()` で値を埋め、`renderAdd` で使う。
 
+### 4.5 Filter / DC blocker は note-on で reset しない
+
+VCF / DCBlocker の `reset()` を `Voice::startNote` で呼ばない。実機 OB-8 はアナログ積分器が常時動作しているため state リセットの概念が無い。digital で reset = 0 から再開すると、低カットオフ時にフィルタが新規入力に対する steady-state に追従するまでの数 ms が「立ち上がり transient」として聞こえる。状態を持ち越して連続させ、必要なら voice 側で短い fade-in を併用して隠す。
+
+`Voice` の `fadeInCountdown` が 64 サンプル (約 0.7 ms @ host rate) の anti-click ramp を提供している。
+
 ### 5. Voice deactivation は **ブロック後** にやる
 
 リリース中の音切れを防ぐため、`Voice::renderAdd` のサンプル内ループでは `active = false` にしない。ループが完了した **後** に一度だけチェックする:
