@@ -165,4 +165,45 @@ if(APPLE)
             )
         endif()
     endforeach()
+
+    # ---- Distribution package -----------------------------------------------
+    # `cmake --build build --target dist` builds the Standalone and copies it
+    # along with dist/install.command and dist/お読みください.txt into
+    # build/dist/OB-8 Native/. The resulting folder can be zipped or sent as
+    # an AirDrop bundle; the recipient double-clicks install.command once to
+    # clear quarantine + ad-hoc-resign on their Mac and the .app then runs.
+    if(TARGET OB8Native_Standalone)
+        set(OB8_DIST_DIR "${CMAKE_BINARY_DIR}/dist/OB-8 Native")
+        add_custom_target(dist
+            COMMENT "Building macOS distribution bundle at ${OB8_DIST_DIR}"
+            DEPENDS OB8Native_Standalone
+            COMMAND ${CMAKE_COMMAND} -E rm -rf  "${OB8_DIST_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E make_directory "${OB8_DIST_DIR}"
+            COMMAND ${CMAKE_COMMAND} -E copy_directory
+                    "$<TARGET_BUNDLE_DIR:OB8Native_Standalone>"
+                    "${OB8_DIST_DIR}/OB-8 Native.app"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                    "${CMAKE_CURRENT_SOURCE_DIR}/dist/install.command"
+                    "${OB8_DIST_DIR}/install.command"
+            COMMAND ${CMAKE_COMMAND} -E copy
+                    "${CMAKE_CURRENT_SOURCE_DIR}/dist/お読みください.txt"
+                    "${OB8_DIST_DIR}/お読みください.txt"
+            COMMAND chmod +x "${OB8_DIST_DIR}/install.command"
+            COMMAND xattr -cr "${OB8_DIST_DIR}/OB-8 Native.app"
+            COMMAND codesign --force --deep --sign - --timestamp=none
+                             "${OB8_DIST_DIR}/OB-8 Native.app"
+            VERBATIM
+        )
+
+        # `cmake --build build --target dist-zip` produces a ready-to-send
+        # ZIP of the dist bundle alongside it.
+        add_custom_target(dist-zip
+            COMMENT "Zipping distribution bundle"
+            DEPENDS dist
+            COMMAND ${CMAKE_COMMAND} -E chdir "${CMAKE_BINARY_DIR}/dist"
+                    ${CMAKE_COMMAND} -E tar c "OB-8 Native.zip" --format=zip
+                                              "OB-8 Native"
+            VERBATIM
+        )
+    endif()
 endif()
