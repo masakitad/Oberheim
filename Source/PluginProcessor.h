@@ -8,6 +8,8 @@
 #include "DSP/Voice.h"
 #include "DSP/LFO.h"
 #include "DSP/Oversampler.h"
+#include "DSP/Delay.h"
+#include "DSP/Reverb.h"
 
 namespace ob8 {
 
@@ -92,6 +94,10 @@ private:
     // Oversampling
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
     int oversampleFactor = 2; // 4x
+
+    // Post effects (run at host sample rate, after downsampling)
+    dsp::StereoDelay delay;
+    dsp::FDNReverb   reverb;
 
     // Scratch buffers
     juce::AudioBuffer<float> mixBuffer;

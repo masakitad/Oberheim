@@ -134,6 +134,23 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (glide, "Glide",   hzLog (0.001f, 2.0f), 0.001f, "s"));
     layout.add (mkB (hold,  "Hold",    false));
 
+    // Delay
+    layout.add (mkF (delayTimeL,    "Delay L",          hzLog (0.005f, 2.0f), 0.30f, "s"));
+    layout.add (mkF (delayTimeR,    "Delay R",          hzLog (0.005f, 2.0f), 0.45f, "s"));
+    layout.add (mkF (delayFeedback, "Delay Feedback",   Range (0.0f, 0.95f),  0.35f));
+    layout.add (mkF (delayCross,    "Delay Cross",      Range (0.0f, 1.0f),   0.0f));
+    layout.add (mkF (delayDamping,  "Delay Damping",    Range (0.0f, 1.0f),   0.40f));
+    layout.add (mkF (delayMix,      "Delay Mix",        Range (0.0f, 1.0f),   0.0f));
+
+    // Reverb
+    layout.add (mkF (reverbSize,       "Reverb Size",       Range (0.5f, 1.5f),     1.0f));
+    layout.add (mkF (reverbDecay,      "Reverb Decay",      Range (0.0f, 1.0f),     0.55f));
+    layout.add (mkF (reverbDamping,    "Reverb Damping",    Range (0.0f, 1.0f),     0.45f));
+    layout.add (mkF (reverbPreDelay,   "Reverb Pre-delay",  Range (0.0f, 0.2f),     0.012f, "s"));
+    layout.add (mkF (reverbModulation, "Reverb Mod",        Range (0.0f, 0.005f),   0.001f));
+    layout.add (mkF (reverbWidth,      "Reverb Width",      Range (0.0f, 1.0f),     1.0f));
+    layout.add (mkF (reverbMix,        "Reverb Mix",        Range (0.0f, 1.0f),     0.0f));
+
     return layout;
 }
 

@@ -36,6 +36,7 @@ with a focus on faithful DSP architecture rather than panel-by-panel mimicry.
 | Patches          | 120-slot patch memory (12 banks × 10), Save / Load `.ob8bank` files                  |
 | MIDI             | CC 1/7/11/64/71-77, Channel & Poly Aftertouch, Pitch Bend, Sustain pedal             |
 | Performance      | **Glide** (portamento, 1 ms - 2 s), **Hold** (latches notes until released)          |
+| Post FX          | **Stereo Delay** (separate L/R times, feedback w/ damping LPF, cross-feed) + **FDN8 Reverb** (8-line Walsh-Hadamard, prime delay lines, modulated taps, plate-style) |
 
 ---
 

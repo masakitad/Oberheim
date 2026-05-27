@@ -97,6 +97,12 @@ private:
     std::unique_ptr<OB8Knob>   glide;
     std::unique_ptr<OB8Toggle> hold;
 
+    // Delay
+    std::unique_ptr<OB8Knob> dlyTimeL, dlyTimeR, dlyFb, dlyCross, dlyDamp, dlyMix;
+
+    // Reverb
+    std::unique_ptr<OB8Knob> rvbSize, rvbDecay, rvbDamp, rvbPre, rvbMod, rvbWidth, rvbMix;
+
     // Keyboard octave shift UI
     juce::TextButton  octDownBtn { "<" }, octUpBtn { ">" };
     juce::Label       octaveLabel { {}, "C3" };
