@@ -148,11 +148,17 @@ cmake --build build --target dist        # writes build/dist/OB-8 Native/
 cmake --build build --target dist-zip    # writes build/dist/OB-8 Native.zip
 ```
 
-`build/dist/OB-8 Native/` contains three things:
+`build/dist/OB-8 Native/` contains:
 
-- **`OB-8 Native.app`** -- the standalone bundle
-- **`install.command`** -- a double-clickable shell script that, on the recipient's Mac, runs `xattr -cr` and `codesign --force --deep --sign -` against the `.app` so Gatekeeper lets it open. The script also offers to copy the app into `/Applications`.
-- **`お読みください.txt`** -- Japanese instructions (also has command-line fall-back instructions).
+- **`OB-8 Native.app`** -- standalone bundle
+- **`OB-8 Native.vst3`** -- VST3 plug-in
+- **`OB-8 Native.component`** -- Audio Unit plug-in (Logic Pro / GarageBand)
+- **`install.command`** -- a double-clickable installer that, on the recipient's Mac:
+  - runs `xattr -cr` + `codesign --force --deep --sign -` against each bundle so Gatekeeper lets them open
+  - copies the **VST3** to `~/Library/Audio/Plug-Ins/VST3/`
+  - copies the **AU** to `~/Library/Audio/Plug-Ins/Components/`
+  - optionally copies the **Standalone** to `/Applications` (interactive prompt)
+- **`お読みください.txt`** -- Japanese instructions (with manual command-line fall-back).
 
 Send the folder via AirDrop / a zip / a USB stick. The recipient double-clicks `install.command` once and then the `.app` runs like any other application.
 

@@ -176,14 +176,53 @@ if(APPLE)
     # clear quarantine + ad-hoc-resign on their Mac and the .app then runs.
     if(TARGET OB8Native_Standalone)
         set(OB8_DIST_DIR "${CMAKE_BINARY_DIR}/dist/OB-8 Native")
-        add_custom_target(dist
-            COMMENT "Building macOS distribution bundle at ${OB8_DIST_DIR}"
-            DEPENDS OB8Native_Standalone
+
+        # We always include Standalone; VST3 and AU targets are added only
+        # if their build targets exist (juce_add_plugin creates them when
+        # the format is enabled in the FORMATS list).
+        set(OB8_DIST_DEPS OB8Native_Standalone)
+        if(TARGET OB8Native_VST3)
+            list(APPEND OB8_DIST_DEPS OB8Native_VST3)
+        endif()
+        if(TARGET OB8Native_AU)
+            list(APPEND OB8_DIST_DEPS OB8Native_AU)
+        endif()
+
+        # The custom commands have to be assembled in a list so format-
+        # specific copy/sign passes can be added conditionally.
+        set(OB8_DIST_COMMANDS
             COMMAND ${CMAKE_COMMAND} -E rm -rf  "${OB8_DIST_DIR}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${OB8_DIST_DIR}"
+            # Standalone
             COMMAND ${CMAKE_COMMAND} -E copy_directory
                     "$<TARGET_BUNDLE_DIR:OB8Native_Standalone>"
                     "${OB8_DIST_DIR}/OB-8 Native.app"
+            COMMAND xattr -cr "${OB8_DIST_DIR}/OB-8 Native.app"
+            COMMAND codesign --force --deep --sign - --timestamp=none
+                             "${OB8_DIST_DIR}/OB-8 Native.app"
+        )
+        if(TARGET OB8Native_VST3)
+            list(APPEND OB8_DIST_COMMANDS
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                        "$<TARGET_BUNDLE_DIR:OB8Native_VST3>"
+                        "${OB8_DIST_DIR}/OB-8 Native.vst3"
+                COMMAND xattr -cr "${OB8_DIST_DIR}/OB-8 Native.vst3"
+                COMMAND codesign --force --deep --sign - --timestamp=none
+                                 "${OB8_DIST_DIR}/OB-8 Native.vst3"
+            )
+        endif()
+        if(TARGET OB8Native_AU)
+            list(APPEND OB8_DIST_COMMANDS
+                COMMAND ${CMAKE_COMMAND} -E copy_directory
+                        "$<TARGET_BUNDLE_DIR:OB8Native_AU>"
+                        "${OB8_DIST_DIR}/OB-8 Native.component"
+                COMMAND xattr -cr "${OB8_DIST_DIR}/OB-8 Native.component"
+                COMMAND codesign --force --deep --sign - --timestamp=none
+                                 "${OB8_DIST_DIR}/OB-8 Native.component"
+            )
+        endif()
+        # Installer script + Japanese readme
+        list(APPEND OB8_DIST_COMMANDS
             COMMAND ${CMAKE_COMMAND} -E copy
                     "${CMAKE_CURRENT_SOURCE_DIR}/dist/install.command"
                     "${OB8_DIST_DIR}/install.command"
@@ -191,9 +230,12 @@ if(APPLE)
                     "${CMAKE_CURRENT_SOURCE_DIR}/dist/お読みください.txt"
                     "${OB8_DIST_DIR}/お読みください.txt"
             COMMAND chmod +x "${OB8_DIST_DIR}/install.command"
-            COMMAND xattr -cr "${OB8_DIST_DIR}/OB-8 Native.app"
-            COMMAND codesign --force --deep --sign - --timestamp=none
-                             "${OB8_DIST_DIR}/OB-8 Native.app"
+        )
+
+        add_custom_target(dist
+            COMMENT "Building macOS distribution bundle (Standalone + VST3 + AU) at ${OB8_DIST_DIR}"
+            DEPENDS ${OB8_DIST_DEPS}
+            ${OB8_DIST_COMMANDS}
             VERBATIM
         )
 
