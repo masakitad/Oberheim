@@ -116,6 +116,10 @@ error: 'this' argument to member function 'copyState' has type
 - `Envelope.h` — CEM3310 風 (overshoot snap)
 - `LFO.h` / `AnalogDrift.h` / `NoiseGenerator.h` / `DCBlocker.h` / `Oversampler.h`
 - `Voice.h` (renderAdd で 1 voice 全パス)
+- `Delay.h` (ステレオフィードバックディレイ, FB に LPF + cross-feedback)
+- `Reverb.h` (FDN8 + Walsh-Hadamard ミキシング + 各 line 遅延変調 + 減衰 LPF)
+
+Post FX (`Delay` / `Reverb`) は host SR で動作。Voice/VCF は OS 内部 SR、master gain と downsample の **後** に挟んでいる。
 
 `Voice.h` の `PerVoiceParams` が Voice ↔ Processor の唯一の I/F。新しいモジュレーション先を増やす時はここに field を足し、`snapshotParams()` で値を埋め、`renderAdd` で使う。
 

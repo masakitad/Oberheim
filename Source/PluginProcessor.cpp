@@ -105,6 +105,10 @@ void OB8Processor::prepareToPlay (double sampleRate, int samplesPerBlock)
 
     lfo.prepare (sampleRate);    // LFO runs at host rate (modulation only)
 
+    // Post-effects run at host rate after downsampling
+    delay.prepare  (sampleRate, 2.5);
+    reverb.prepare (sampleRate);
+
     const int osBlock = samplesPerBlock * (1 << oversampleFactor);
     mixBuffer.setSize        (1, osBlock, false, true, true);
     oversampleBuffer.setSize (2, osBlock, false, true, true);
@@ -517,6 +521,67 @@ void OB8Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuf
 
     // Decimate back to host rate, writing into the host buffer
     oversampler->processSamplesDown (hostBlock);
+
+    // ---- Post FX: stereo delay + FDN reverb (host-rate) -----------------
+    {
+        auto get = [&] (auto id) { return apvts.getRawParameterValue (id)->load(); };
+
+        delay.setTimeLSeconds  (get (ParamID::delayTimeL));
+        delay.setTimeRSeconds  (get (ParamID::delayTimeR));
+        delay.setFeedback      (get (ParamID::delayFeedback));
+        delay.setCrossFeedback (get (ParamID::delayCross));
+        delay.setDamping       (get (ParamID::delayDamping));
+        const double delayMixV = get (ParamID::delayMix);
+
+        reverb.setSize             (get (ParamID::reverbSize));
+        reverb.setDecay            (get (ParamID::reverbDecay));
+        reverb.setDamping          (get (ParamID::reverbDamping));
+        reverb.setPreDelaySeconds  (get (ParamID::reverbPreDelay));
+        reverb.setModulationDepth  (get (ParamID::reverbModulation));
+        reverb.setWidth            (get (ParamID::reverbWidth));
+        const double reverbMixV = get (ParamID::reverbMix);
+
+        const int numCh = buffer.getNumChannels();
+        const int n     = buffer.getNumSamples();
+
+        if (numCh >= 2)
+        {
+            auto* L = buffer.getWritePointer (0);
+            auto* R = buffer.getWritePointer (1);
+
+            for (int i = 0; i < n; ++i)
+            {
+                const double dryL = L[i];
+                const double dryR = R[i];
+
+                double dlyL = 0.0, dlyR = 0.0;
+                delay.processSample (dryL, dryR, dlyL, dlyR);
+                const double afterDelayL = dryL + delayMixV * dlyL;
+                const double afterDelayR = dryR + delayMixV * dlyR;
+
+                double rvbL = 0.0, rvbR = 0.0;
+                reverb.processSample (afterDelayL, afterDelayR, rvbL, rvbR);
+
+                L[i] = static_cast<float> (afterDelayL + reverbMixV * rvbL);
+                R[i] = static_cast<float> (afterDelayR + reverbMixV * rvbR);
+            }
+        }
+        else if (numCh == 1)
+        {
+            // Mono out: still run the FX in stereo internally, sum to mono.
+            auto* M = buffer.getWritePointer (0);
+            for (int i = 0; i < n; ++i)
+            {
+                const double dry = M[i];
+                double dlyL = 0.0, dlyR = 0.0;
+                delay.processSample (dry, dry, dlyL, dlyR);
+                const double afterDelay = dry + delayMixV * 0.5 * (dlyL + dlyR);
+                double rvbL = 0.0, rvbR = 0.0;
+                reverb.processSample (afterDelay, afterDelay, rvbL, rvbR);
+                M[i] = static_cast<float> (afterDelay + reverbMixV * 0.5 * (rvbL + rvbR));
+            }
+        }
+    }
 }
 
 juce::AudioProcessorEditor* OB8Processor::createEditor()

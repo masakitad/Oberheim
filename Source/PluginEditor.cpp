@@ -98,6 +98,23 @@ OB8Editor::OB8Editor (OB8Processor& p)
     glide.reset (new OB8Knob   (apvts, ParamID::glide, "GLIDE"));
     hold .reset (new OB8Toggle (apvts, ParamID::hold,  "HOLD"));
 
+    // Delay
+    dlyTimeL.reset (new OB8Knob (apvts, ParamID::delayTimeL,    "TIME L"));
+    dlyTimeR.reset (new OB8Knob (apvts, ParamID::delayTimeR,    "TIME R"));
+    dlyFb   .reset (new OB8Knob (apvts, ParamID::delayFeedback, "FBK"));
+    dlyCross.reset (new OB8Knob (apvts, ParamID::delayCross,    "CROSS"));
+    dlyDamp .reset (new OB8Knob (apvts, ParamID::delayDamping,  "DAMP"));
+    dlyMix  .reset (new OB8Knob (apvts, ParamID::delayMix,      "MIX"));
+
+    // Reverb
+    rvbSize .reset (new OB8Knob (apvts, ParamID::reverbSize,       "SIZE"));
+    rvbDecay.reset (new OB8Knob (apvts, ParamID::reverbDecay,      "DECAY"));
+    rvbDamp .reset (new OB8Knob (apvts, ParamID::reverbDamping,    "DAMP"));
+    rvbPre  .reset (new OB8Knob (apvts, ParamID::reverbPreDelay,   "PRE-DLY"));
+    rvbMod  .reset (new OB8Knob (apvts, ParamID::reverbModulation, "MOD"));
+    rvbWidth.reset (new OB8Knob (apvts, ParamID::reverbWidth,      "WIDTH"));
+    rvbMix  .reset (new OB8Knob (apvts, ParamID::reverbMix,        "MIX"));
+
     // Page 2
     envToVco1 .reset (new OB8Knob   (apvts, ParamID::envToVco1,   "FE -> V1"));
     envToVco2 .reset (new OB8Knob   (apvts, ParamID::envToVco2,   "FE -> V2"));
@@ -181,6 +198,16 @@ OB8Editor::OB8Editor (OB8Processor& p)
     // Section 12: PATCH BANK (frame only; widgets laid out by hand in resized())
     sections.push_back ({ "PATCH BANK", {}, {} });
 
+    // Section 13: DELAY
+    sections.push_back ({ "DELAY", {},
+                          { dlyTimeL.get(), dlyTimeR.get(), dlyFb.get(),
+                            dlyCross.get(), dlyDamp.get(), dlyMix.get() } });
+
+    // Section 14: REVERB
+    sections.push_back ({ "REVERB", {},
+                          { rvbSize.get(), rvbDecay.get(), rvbDamp.get(),
+                            rvbPre.get(), rvbMod.get(), rvbWidth.get(), rvbMix.get() } });
+
     for (auto& s : sections)
         for (auto* c : s.children)
             addAndMakeVisible (c);
@@ -209,13 +236,12 @@ OB8Editor::OB8Editor (OB8Processor& p)
     };
     updateOctaveLabel();
 
-    // Resizable so the editor fits laptop screens (the PATCH BANK row
-    // would otherwise sit below the visible area on 13" Macs). The
-    // resized() layout scales the rows proportionally inside the new
-    // bounds, so it stays usable down to the minimum size.
+    // Resizable so the editor fits laptop screens. The resized() layout
+    // scales the rows proportionally inside the new bounds, so it stays
+    // usable down to the minimum size.
     setResizable (true, true);
-    setResizeLimits (1180, 720, 1920, 1200);
-    setSize (1280, 820);
+    setResizeLimits (1180, 880, 1920, 1300);
+    setSize (1280, 980);
 }
 
 void OB8Editor::updateOctaveLabel()
@@ -444,12 +470,13 @@ void OB8Editor::resized()
     bounds.removeFromBottom (8);
     keyboard.setBounds (kbdBounds);
 
-    // Allocate the three rows proportionally so the window resizes cleanly.
-    // The row weights (38, 32, 30) keep the knob clusters legible while
-    // leaving enough room for the PATCH BANK section at the bottom.
-    const int availH = bounds.getHeight() - 2 * 8;   // minus inter-row gaps
-    const int rowH1  = (availH * 38) / 100;
-    const int rowH2  = (availH * 32) / 100;
+    // Allocate the four rows proportionally so the window resizes cleanly.
+    // Weights (30/24/26/20) keep the knob clusters legible while leaving
+    // a reasonable strip for the new FX row at the bottom of the panel.
+    const int availH = bounds.getHeight() - 3 * 8;   // minus three inter-row gaps
+    const int rowH1  = (availH * 30) / 100;
+    const int rowH2  = (availH * 24) / 100;
+    const int rowH3  = (availH * 26) / 100;
 
     // Row 1: VCO1 | VCO2 | X-MOD | MIXER | FILTER | FILTER ENV
     auto row1 = bounds.removeFromTop (rowH1);
@@ -491,7 +518,7 @@ void OB8Editor::resized()
     bounds.removeFromTop (8);
 
     // Row 3: PAGE 2 | SPLIT/DOUBLE | PATCH BANK (hand-laid out)
-    auto row3 = bounds;
+    auto row3 = bounds.removeFromTop (rowH3);
     const int wPage2 = 620;
     const int wSplit = 220;
 
@@ -526,6 +553,15 @@ void OB8Editor::resized()
     auto btnRow2 = patchArea.removeFromTop (28);
     saveBankBtn.setBounds (btnRow2.removeFromLeft (btnRow2.getWidth() / 2).reduced (2));
     loadBankBtn.setBounds (btnRow2.reduced (2));
+
+    bounds.removeFromTop (8);
+
+    // Row 4: DELAY | REVERB (post-effects)
+    auto row4 = bounds;
+    const int wDelay = (row4.getWidth() - 8) * 6 / 13;  // 6 controls vs 7
+    layoutSection (sections[13], row4.removeFromLeft (wDelay), 6);
+    row4.removeFromLeft (8);
+    layoutSection (sections[14], row4, 7);
 }
 
 } // namespace ob8

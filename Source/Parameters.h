@@ -90,6 +90,23 @@ namespace ParamID
     // Performance
     static constexpr auto glide             = "glide";              // seconds (0..2)
     static constexpr auto hold              = "hold";               // bool (latches notes)
+
+    // Delay
+    static constexpr auto delayTimeL    = "delay_time_l";       // seconds
+    static constexpr auto delayTimeR    = "delay_time_r";
+    static constexpr auto delayFeedback = "delay_feedback";     // 0..0.95
+    static constexpr auto delayCross    = "delay_cross";        // 0..1
+    static constexpr auto delayDamping  = "delay_damping";      // 0..1
+    static constexpr auto delayMix      = "delay_mix";          // 0..1
+
+    // Reverb
+    static constexpr auto reverbSize       = "reverb_size";        // 0.5..1.5
+    static constexpr auto reverbDecay      = "reverb_decay";       // 0..1
+    static constexpr auto reverbDamping    = "reverb_damping";     // 0..1
+    static constexpr auto reverbPreDelay   = "reverb_predelay";    // 0..0.2 s
+    static constexpr auto reverbModulation = "reverb_modulation";  // 0..0.005 s
+    static constexpr auto reverbWidth      = "reverb_width";       // 0..1
+    static constexpr auto reverbMix        = "reverb_mix";         // 0..1
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
