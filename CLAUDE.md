@@ -161,7 +161,7 @@ if (! ampEnv.isActive()) { active = false; currentMidiNote = -1; }
 - **テキスト / 罫線**: 濃いダークグレー `#161412` (0.7-0.8 px hairline)
 - **アクセント**: バーミリオン赤 `#C2392B` (フェーダーつまみ、番号、アクティブ要素)
 - **ミュート**: グレー `#8C8476` (ティック / 補助情報)
-- **フェーダー**: 矩形チャンネル + 中央 vertical track + **左右両側の 11 本ティック (両端と中央のみ強調)** + チャンネル幅いっぱいの赤い水平 thumb
+- **コントロール**: 製図風ロータリーノブ (`drawRotarySlider`)。クリーム body + 1 px ヘアラインリム + 内側 0.62r 細罫線 + 周囲 11 段ティック (両端・中央のみ強調) + 赤い三角ポインタ + リム外側の赤いインデックスドット
 - **セクションタイトル**: `01 VCO 1` (番号は赤 mono bold、ラベルは黒 mono bold)
 - **ヘッダ**: `HAIRLINE-VIII` (mono bold 26px + extra kerning) + `NO. 0427 - REV. C - FADER CUT` (赤) + `eight-voice polyphonic - slider edition` (mute italic)、上下に細罫線
 - **DRAFT 透かし**: 中央に -0.42 rad 回転した italic 200px、alpha 0.10

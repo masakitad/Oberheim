@@ -7,8 +7,11 @@ OB8Knob::OB8Knob (juce::AudioProcessorValueTreeState& apvts,
                   const juce::String& paramID,
                   const juce::String& labelText)
 {
-    slider.setSliderStyle (juce::Slider::LinearVertical);
-    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 70, 14);
+    slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 64, 13);
+    slider.setRotaryParameters (juce::MathConstants<float>::pi * 1.25f,
+                                juce::MathConstants<float>::pi * 2.75f,
+                                true);
     slider.setVelocityBasedMode (false);
     addAndMakeVisible (slider);
 

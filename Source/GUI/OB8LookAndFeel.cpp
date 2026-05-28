@@ -134,25 +134,72 @@ juce::Typeface::Ptr OB8LookAndFeel::getTypefaceForFont (const juce::Font& f)
     return LookAndFeel_V4::getTypefaceForFont (f);
 }
 
-/*  Rotary slider -- kept as a fallback for any legacy rotary caller. */
+/*  HAIRLINE-style rotary knob:
+      - cream paper fill with a 1-px black hairline rim
+      - 11 tick marks distributed around the rotary range (the ends and
+        the centre tick get a slightly longer / heavier stroke)
+      - red triangular pointer drawn from rim toward the centre
+      - small red dot at the very tip of the pointer for legibility
+      - dial centre kept light so the pointer reads clearly */
 void OB8LookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
                                        float pos, float startAng, float endAng,
                                        juce::Slider&)
 {
-    const float r     = juce::jmin (w, h) * 0.5f - 4.0f;
-    const float cx    = x + w * 0.5f;
-    const float cy    = y + h * 0.5f;
-    const float angle = startAng + pos * (endAng - startAng);
+    const float cx = x + w * 0.5f;
+    const float cy = y + h * 0.5f;
+    const float r  = juce::jmin (w, h) * 0.5f - 6.0f;
 
-    g.setColour (panelCream().darker (0.05f));
-    g.fillEllipse (cx - r, cy - r, r * 2, r * 2);
+    // ---- tick scale around the rotary range -------------------------------
+    constexpr int kNumTicks = 11;
+    const float tickInner   = r + 2.0f;
+    const float tickOuter   = r + 6.5f;
+    const float tickOuterEm = r + 8.5f;
+    for (int i = 0; i < kNumTicks; ++i)
+    {
+        const float a = startAng + (endAng - startAng)
+                                   * static_cast<float> (i) / (kNumTicks - 1);
+        const bool  emph = (i == 0 || i == 5 || i == 10);
+        const float ro = emph ? tickOuterEm : tickOuter;
+        const float s = std::sin (a);
+        const float c = -std::cos (a);
+        g.setColour (panelDark().withAlpha (emph ? 0.85f : 0.55f));
+        g.drawLine (cx + s * tickInner, cy + c * tickInner,
+                    cx + s * ro,        cy + c * ro,
+                    emph ? 0.9f : 0.6f);
+    }
+
+    // ---- dial body --------------------------------------------------------
+    g.setColour (panelCream());
+    g.fillEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f);
     g.setColour (panelDark());
-    g.drawEllipse (cx - r, cy - r, r * 2, r * 2, 1.0f);
+    g.drawEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f, 0.9f);
 
-    juce::Path p;
-    p.addRectangle (-1.0f, -r * 0.92f, 2.0f, r * 0.50f);
+    // Subtle inner ring for technical-drawing feel
+    const float ir = r * 0.62f;
+    g.setColour (panelDark().withAlpha (0.35f));
+    g.drawEllipse (cx - ir, cy - ir, ir * 2.0f, ir * 2.0f, 0.5f);
+
+    // ---- pointer ----------------------------------------------------------
+    const float angle = startAng + pos * (endAng - startAng);
+    const float pTipR = r * 0.92f;
+    const float pBaseR = r * 0.18f;
+    const float pHalfW = 2.0f;
+    juce::Path pointer;
+    pointer.startNewSubPath (-pHalfW, -pBaseR);
+    pointer.lineTo          ( pHalfW, -pBaseR);
+    pointer.lineTo          ( 0.0f,   -pTipR);
+    pointer.closeSubPath();
     g.setColour (panelAccent());
-    g.fillPath (p, juce::AffineTransform::rotation (angle).translated (cx, cy));
+    g.fillPath (pointer, juce::AffineTransform::rotation (angle).translated (cx, cy));
+
+    // Index dot just outside the rim for high-contrast position readout
+    const float dotR = r + 4.0f;
+    const float dotX = cx + std::sin (angle) * dotR;
+    const float dotY = cy - std::cos (angle) * dotR;
+    g.setColour (panelAccent());
+    g.fillEllipse (dotX - 2.0f, dotY - 2.0f, 4.0f, 4.0f);
+    g.setColour (panelDark());
+    g.drawEllipse (dotX - 2.0f, dotY - 2.0f, 4.0f, 4.0f, 0.4f);
 }
 
 /*  HAIRLINE vertical fader:
