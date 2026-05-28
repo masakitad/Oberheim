@@ -82,6 +82,18 @@ public:
         setRelease (r);
     }
 
+    /*  Nord-Lead-style "infinite release": when enabled, noteOff() leaves
+        the envelope frozen at its current value instead of decaying to 0.
+        The voice therefore rings forever (or until explicitly killed). */
+    void setReleaseInfinite (bool inf) noexcept
+    {
+        infRelease = inf;
+        if (inf && stage == Stage::Release)
+            coef = 0.0;
+        else if (! inf && stage == Stage::Release)
+            coef = ninetyNineCoef (rTime);
+    }
+
     void noteOn() noexcept
     {
         stage  = Stage::Attack;
@@ -93,8 +105,16 @@ public:
     {
         if (stage == Stage::Idle) return;
         stage  = Stage::Release;
-        target = 0.0;
-        coef   = ninetyNineCoef (rTime);
+        if (infRelease)
+        {
+            target = value;   // freeze at the current level
+            coef   = 0.0;
+        }
+        else
+        {
+            target = 0.0;
+            coef   = ninetyNineCoef (rTime);
+        }
     }
 
     bool isActive() const noexcept { return stage != Stage::Idle; }
@@ -175,6 +195,7 @@ private:
     double sLvl   = 0.7;
     double rTime  = 0.250;
     Stage  stage  = Stage::Idle;
+    bool   infRelease = false;
 };
 
 } // namespace ob8::dsp

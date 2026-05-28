@@ -103,6 +103,7 @@ private:
     // Performance
     std::unique_ptr<OB8Knob>   glide;
     std::unique_ptr<OB8Toggle> hold;
+    std::unique_ptr<OB8Toggle> ampReleaseInf;
 
     // Delay
     std::unique_ptr<OB8Knob> dlyTimeL, dlyTimeR, dlyFb, dlyCross, dlyDamp, dlyMix;

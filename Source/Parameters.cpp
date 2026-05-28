@@ -62,36 +62,36 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkC (vco2Octave, "VCO 2 Octave",  octaves, 2));
     layout.add (mkC (vco2Wave,   "VCO 2 Wave",    waves,   0));
     layout.add (mkF (vco2Pw,     "VCO 2 PW",      Range (0.05f, 0.95f),   0.50f));
-    layout.add (mkF (vco2Detune, "VCO 2 Detune",  Range (-7.0f, 7.0f),    0.07f, "st"));
+    layout.add (mkF (vco2Detune, "VCO 2 Detune",  Range (-7.0f, 7.0f),    0.08f, "st"));
 
     // X-MOD / Sync
     layout.add (mkF (xMod, "X-Mod",   Range (0.0f, 1.0f), 0.0f));
     layout.add (mkB (sync, "Sync",    false));
 
     // Mixer
-    layout.add (mkF (mixVco1,  "Mix VCO 1",  Range (0.0f, 1.0f), 0.8f));
-    layout.add (mkF (mixVco2,  "Mix VCO 2",  Range (0.0f, 1.0f), 0.6f));
+    layout.add (mkF (mixVco1,  "Mix VCO 1",  Range (0.0f, 1.0f), 0.70f));
+    layout.add (mkF (mixVco2,  "Mix VCO 2",  Range (0.0f, 1.0f), 0.70f));
     layout.add (mkF (mixNoise, "Mix Noise",  Range (0.0f, 1.0f), 0.0f));
 
     // Filter
-    layout.add (mkF (cutoff,    "Cutoff",     hzLog (20.0f, 18000.0f), 1200.0f, "Hz"));
-    layout.add (mkF (resonance, "Resonance",  Range (0.0f, 1.0f), 0.0f));
-    layout.add (mkF (envAmount, "Env Amount", Range (-1.0f, 1.0f), 0.5f));
+    layout.add (mkF (cutoff,    "Cutoff",     hzLog (20.0f, 18000.0f), 350.0f, "Hz"));
+    layout.add (mkF (resonance, "Resonance",  Range (0.0f, 1.0f), 0.05f));
+    layout.add (mkF (envAmount, "Env Amount", Range (-1.0f, 1.0f), 0.75f));
     layout.add (mkF (lfoToVcf,  "LFO -> VCF", Range (0.0f, 1.0f), 0.0f));
-    layout.add (mkF (kbdTrack,  "Kbd Track",  Range (0.0f, 1.0f), 0.5f));
+    layout.add (mkF (kbdTrack,  "Kbd Track",  Range (0.0f, 1.0f), 0.55f));
     layout.add (mkC (slope,     "Slope",      slopes, 1));
 
     // Filter env
     layout.add (mkF (filtA, "Filt A", hzLog (0.001f, 10.0f), 0.005f, "s"));
-    layout.add (mkF (filtD, "Filt D", hzLog (0.001f, 10.0f), 0.250f, "s"));
-    layout.add (mkF (filtS, "Filt S", Range (0.0f, 1.0f),    0.0f));
-    layout.add (mkF (filtR, "Filt R", hzLog (0.001f, 10.0f), 0.250f, "s"));
+    layout.add (mkF (filtD, "Filt D", hzLog (0.001f, 10.0f), 0.340f, "s"));
+    layout.add (mkF (filtS, "Filt S", Range (0.0f, 1.0f),    0.15f));
+    layout.add (mkF (filtR, "Filt R", hzLog (0.001f, 10.0f), 0.240f, "s"));
 
     // Amp env
-    layout.add (mkF (ampA, "Amp A", hzLog (0.001f, 10.0f), 0.005f, "s"));
-    layout.add (mkF (ampD, "Amp D", hzLog (0.001f, 10.0f), 0.250f, "s"));
-    layout.add (mkF (ampS, "Amp S", Range (0.0f, 1.0f),    0.7f));
-    layout.add (mkF (ampR, "Amp R", hzLog (0.001f, 10.0f), 0.250f, "s"));
+    layout.add (mkF (ampA, "Amp A", hzLog (0.001f, 10.0f), 0.004f, "s"));
+    layout.add (mkF (ampD, "Amp D", hzLog (0.001f, 10.0f), 0.200f, "s"));
+    layout.add (mkF (ampS, "Amp S", Range (0.0f, 1.0f),    0.85f));
+    layout.add (mkF (ampR, "Amp R", hzLog (0.001f, 10.0f), 0.300f, "s"));
 
     // LFO
     layout.add (mkF (lfoRate,   "LFO Rate",   hzLog (0.05f, 30.0f), 4.0f, "Hz"));
@@ -131,16 +131,17 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (doubleDetune,      "Double Detune",   Range (0.0f, 1.0f), 0.10f, "st"));
 
     // Performance
-    layout.add (mkF (glide, "Glide",   hzLog (0.001f, 2.0f), 0.001f, "s"));
-    layout.add (mkB (hold,  "Hold",    false));
+    layout.add (mkF (glide, "Glide",         hzLog (0.001f, 2.0f), 0.001f, "s"));
+    layout.add (mkB (hold,  "Hold",          false));
+    layout.add (mkB (ampReleaseInf, "Amp Release Inf", false));
 
     // Delay
-    layout.add (mkF (delayTimeL,    "Delay L",          hzLog (0.005f, 2.0f), 0.30f, "s"));
-    layout.add (mkF (delayTimeR,    "Delay R",          hzLog (0.005f, 2.0f), 0.45f, "s"));
-    layout.add (mkF (delayFeedback, "Delay Feedback",   Range (0.0f, 0.95f),  0.35f));
-    layout.add (mkF (delayCross,    "Delay Cross",      Range (0.0f, 1.0f),   0.0f));
-    layout.add (mkF (delayDamping,  "Delay Damping",    Range (0.0f, 1.0f),   0.40f));
-    layout.add (mkF (delayMix,      "Delay Mix",        Range (0.0f, 1.0f),   0.0f));
+    layout.add (mkF (delayTimeL,    "Delay L",          hzLog (0.005f, 2.0f), 0.176f, "s"));
+    layout.add (mkF (delayTimeR,    "Delay R",          hzLog (0.005f, 2.0f), 0.459f, "s"));
+    layout.add (mkF (delayFeedback, "Delay Feedback",   Range (0.0f, 0.95f),  0.368f));
+    layout.add (mkF (delayCross,    "Delay Cross",      Range (0.0f, 1.0f),   0.477f));
+    layout.add (mkF (delayDamping,  "Delay Damping",    Range (0.0f, 1.0f),   0.828f));
+    layout.add (mkF (delayMix,      "Delay Mix",        Range (0.0f, 1.0f),   0.486f));
 
     // Reverb
     layout.add (mkF (reverbSize,       "Reverb Size",       Range (0.5f, 1.5f),     1.0f));
@@ -148,7 +149,7 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (reverbDamping,    "Reverb Damping",    Range (0.0f, 1.0f),     0.45f));
     layout.add (mkF (reverbPreDelay,   "Reverb Pre-delay",  Range (0.0f, 0.2f),     0.012f, "s"));
     layout.add (mkF (reverbModulation, "Reverb Mod",        Range (0.0f, 0.005f),   0.001f));
-    layout.add (mkF (reverbWidth,      "Reverb Width",      Range (0.0f, 1.0f),     1.0f));
+    layout.add (mkF (reverbWidth,      "Reverb Width",      Range (0.0f, 1.0f),     0.0f));
     layout.add (mkF (reverbMix,        "Reverb Mix",        Range (0.0f, 1.0f),     0.0f));
 
     // Simple-view macros

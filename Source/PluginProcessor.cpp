@@ -197,7 +197,8 @@ dsp::Voice::PerVoiceParams OB8Processor::snapshotParams() const
 
     p.pitchBendSemis = currentBendSemis + get (ParamID::masterTune) * 0.01;
 
-    p.glideTime = get (ParamID::glide);
+    p.glideTime     = get (ParamID::glide);
+    p.ampReleaseInf = get (ParamID::ampReleaseInf) > 0.5f;
 
     return p;
 }

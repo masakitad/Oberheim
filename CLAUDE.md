@@ -217,9 +217,9 @@ if (! ampEnv.isActive()) { active = false; currentMidiNote = -1; }
 
 新しい CC を追加する時は `handleMidiEvent` の `switch (cc)` に case を足す。
 
-### Hold / Sustain pedal
+### Hold / Sustain pedal / Inf Release
 
-両方とも `sustainedNotes` (juce::SortedSet) に release 予定の note を貯める。
+両方とも `sustainedNotes` (juce::SortedSet) に release 予定の note を貯める。`Amp Release Inf` (Nord Lead 風) は別系統で、ON にすると `Envelope::noteOff` がリリース時に現在値で凍結する (`target = value`, `coef = 0`)。明示的な kill が無い限り voice は鳴り続ける。
 
 - **Sustain pedal (CC 64)**: 押されている間 noteOff を保留、離されたら (Hold が ON でなければ) 蓄積した note を全部 noteOff
 - **Hold (panel toggle)**: 同様のロジック。pedal の代替。Hold が OFF になった瞬間は `processBlock` の冒頭でポーリングして `sustainedNotes` を解放

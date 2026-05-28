@@ -108,6 +108,7 @@ OB8Editor::OB8Editor (OB8Processor& p)
     // Performance
     glide.reset (new OB8Knob   (apvts, ParamID::glide, "GLIDE"));
     hold .reset (new OB8Toggle (apvts, ParamID::hold,  "HOLD"));
+    ampReleaseInf.reset (new OB8Toggle (apvts, ParamID::ampReleaseInf, "REL\xe2\x88\x9e"));
 
     // Delay
     dlyTimeL.reset (new OB8Knob (apvts, ParamID::delayTimeL,    "TIME L"));
@@ -227,7 +228,8 @@ OB8Editor::OB8Editor (OB8Processor& p)
     sections.push_back ({ "VELOCITY",     {}, { velToVca.get(), velToVcf.get() } });
     sections.push_back ({ "VOICE",        {}, { polyMode.get(), unisonDetune.get(), driftDepth.get(),
                                                 masterGain.get(), masterTune.get(), bendRange.get(),
-                                                glide.get(), hold.get() } });
+                                                glide.get(), hold.get(),
+                                                ampReleaseInf.get() } });
 
     sections.push_back ({ "PAGE 2 - ENVELOPE & AT/MW", {},
                           { envToVco1.get(), envToVco2.get(), envToPwm.get(),
@@ -822,9 +824,9 @@ void OB8Editor::resized()
     row2.removeFromLeft (8);
     layoutSection (sections[8], row2.removeFromLeft (wVel),  2);
     row2.removeFromLeft (8);
-    // VOICE has 8 children (mode / uni-det / drift / volume / tune / bend
-    // / glide / hold). Spec wants them in a single row so use 8 columns.
-    layoutSection (sections[9], row2,                        8);
+    // VOICE has 9 children (mode / uni-det / drift / volume / tune / bend
+    // / glide / hold / rel-infinity). 9 columns keep them in a single row.
+    layoutSection (sections[9], row2,                        9);
 
     bounds.removeFromTop (kInterRowGap);
 
