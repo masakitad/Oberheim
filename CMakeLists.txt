@@ -84,6 +84,7 @@ target_sources(OB8Native PRIVATE
     Source/GUI/OB8LookAndFeel.h
     Source/GUI/OB8Knob.cpp
     Source/GUI/OB8Knob.h
+    Source/GUI/ModChip.h
 )
 
 target_compile_definitions(OB8Native PUBLIC

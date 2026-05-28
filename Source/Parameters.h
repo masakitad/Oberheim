@@ -90,6 +90,7 @@ namespace ParamID
     // Performance
     static constexpr auto glide             = "glide";              // seconds (0..2)
     static constexpr auto hold              = "hold";               // bool (latches notes)
+    static constexpr auto ampReleaseInf     = "amp_release_inf";    // bool (Nord-style infinite release)
 
     // Delay
     static constexpr auto delayTimeL    = "delay_time_l";       // seconds

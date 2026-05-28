@@ -107,6 +107,10 @@ public:
         // Glide / portamento (seconds; 0 = no glide). Applied per-voice to
         // smoothly drift currentSmoothedNote toward the target MIDI note.
         double glideTime = 0.0;
+
+        // Nord-Lead-style infinite release. When true, noteOff freezes
+        // the amp envelope at its current level instead of decaying.
+        bool ampReleaseInf = false;
     };
 
     void prepare (double sampleRate, uint32_t seed)
@@ -381,6 +385,7 @@ private:
         vco2.setWave (p.vco2Wave);
         ampEnv.setADSR  (p.ampA,  p.ampD,  p.ampS,  p.ampR);
         filtEnv.setADSR (p.filtA, p.filtD, p.filtS, p.filtR);
+        ampEnv.setReleaseInfinite (p.ampReleaseInf);
     }
 
     static double midiToHz (double note) noexcept
