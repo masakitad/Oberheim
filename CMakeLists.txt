@@ -79,6 +79,7 @@ target_sources(OB8Native PRIVATE
     Source/DSP/DCBlocker.h
     Source/DSP/Delay.h
     Source/DSP/Reverb.h
+    Source/DSP/Granular.h
     Source/GUI/OB8LookAndFeel.cpp
     Source/GUI/OB8LookAndFeel.h
     Source/GUI/OB8Knob.cpp

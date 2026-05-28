@@ -118,6 +118,7 @@ error: 'this' argument to member function 'copyState' has type
 - `Voice.h` (renderAdd で 1 voice 全パス)
 - `Delay.h` (ステレオフィードバックディレイ, FB に LPF + cross-feedback)
 - `Reverb.h` (FDN8 + Walsh-Hadamard ミキシング + 各 line 遅延変調 + 減衰 LPF)
+- `Granular.h` (24 同時 grain、Hann 窓、density / size / scatter / pitch / spread / feedback / mix を持つグラニュラーディレイ)
 
 Post FX (`Delay` / `Reverb`) は host SR で動作。Voice/VCF は OS 内部 SR、master gain と downsample の **後** に挟んでいる。
 

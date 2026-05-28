@@ -106,8 +106,9 @@ void OB8Processor::prepareToPlay (double sampleRate, int samplesPerBlock)
     lfo.prepare (sampleRate);    // LFO runs at host rate (modulation only)
 
     // Post-effects run at host rate after downsampling
-    delay.prepare  (sampleRate, 2.5);
-    reverb.prepare (sampleRate);
+    delay.prepare    (sampleRate, 2.5);
+    reverb.prepare   (sampleRate);
+    granular.prepare (sampleRate, 4.0);
 
     const int osBlock = samplesPerBlock * (1 << oversampleFactor);
     mixBuffer.setSize        (1, osBlock, false, true, true);
@@ -541,6 +542,14 @@ void OB8Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuf
         reverb.setWidth            (get (ParamID::reverbWidth));
         const double reverbMixV = get (ParamID::reverbMix);
 
+        granular.setGrainMs    (get (ParamID::granularSize));
+        granular.setDensityHz  (get (ParamID::granularDensity));
+        granular.setScatter    (get (ParamID::granularScatter));
+        granular.setPitchSemis (get (ParamID::granularPitch));
+        granular.setSpread     (get (ParamID::granularSpread));
+        granular.setFeedback   (get (ParamID::granularFeedback));
+        const double granMixV  = get (ParamID::granularMix);
+
         const int numCh = buffer.getNumChannels();
         const int n     = buffer.getNumSamples();
 
@@ -561,9 +570,16 @@ void OB8Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuf
 
                 double rvbL = 0.0, rvbR = 0.0;
                 reverb.processSample (afterDelayL, afterDelayR, rvbL, rvbR);
+                const double afterRevL = afterDelayL + reverbMixV * rvbL;
+                const double afterRevR = afterDelayR + reverbMixV * rvbR;
 
-                L[i] = static_cast<float> (afterDelayL + reverbMixV * rvbL);
-                R[i] = static_cast<float> (afterDelayR + reverbMixV * rvbR);
+                // Granular runs on the post-reverb signal so the wet cloud
+                // can pick up the reverb tail too.
+                double grL = 0.0, grR = 0.0;
+                granular.processSample (afterRevL, afterRevR, grL, grR);
+
+                L[i] = static_cast<float> (afterRevL + granMixV * grL);
+                R[i] = static_cast<float> (afterRevR + granMixV * grR);
             }
         }
         else if (numCh == 1)
@@ -578,7 +594,10 @@ void OB8Processor::processBlock (juce::AudioBuffer<float>& buffer, juce::MidiBuf
                 const double afterDelay = dry + delayMixV * 0.5 * (dlyL + dlyR);
                 double rvbL = 0.0, rvbR = 0.0;
                 reverb.processSample (afterDelay, afterDelay, rvbL, rvbR);
-                M[i] = static_cast<float> (afterDelay + reverbMixV * 0.5 * (rvbL + rvbR));
+                const double afterRev = afterDelay + reverbMixV * 0.5 * (rvbL + rvbR);
+                double grL = 0.0, grR = 0.0;
+                granular.processSample (afterRev, afterRev, grL, grR);
+                M[i] = static_cast<float> (afterRev + granMixV * 0.5 * (grL + grR));
             }
         }
     }
