@@ -400,19 +400,19 @@ void OB8Editor::paint (juce::Graphics& g)
     // ---- Header ----------------------------------------------------------
     auto header = bounds.removeFromTop (52.0f);
     g.setColour (LF::panelDark());
-    g.setFont (juce::Font (juce::FontOptions (24.0f).withTypefaceStyle ("Bold")));
+    g.setFont (juce::Font (juce::FontOptions (24.0f).withStyle ("Bold")));
     g.drawText ("OB-8  NATIVE", header.reduced (18.0f, 0.0f),
                 juce::Justification::centredLeft);
 
     g.setColour (LF::panelAccent());
-    g.setFont (juce::Font (juce::FontOptions (12.0f).withTypefaceStyle ("Bold")));
+    g.setFont (juce::Font (juce::FontOptions (12.0f).withStyle ("Bold")));
     auto subRect = header.reduced (18.0f, 0.0f);
     subRect.removeFromLeft (220.0f);
     g.drawText ("NO. 0427  REV. C  FADER CUT", subRect,
                 juce::Justification::centredLeft);
 
     g.setColour (LF::panelMute());
-    g.setFont (juce::Font (juce::FontOptions (12.0f).withTypefaceStyle ("Italic")));
+    g.setFont (juce::Font (juce::FontOptions (12.0f).withStyle ("Italic")));
     g.drawText ("eight-voice polyphonic  -  slider edition",
                 header.reduced (18.0f, 0.0f), juce::Justification::centredRight);
 
@@ -425,7 +425,7 @@ void OB8Editor::paint (juce::Graphics& g)
     auto tabRow = bounds.removeFromTop (28.0f).reduced (12.0f, 4.0f);
     const juce::StringArray tabs { "PROGRAM", "OSC", "FILTER", "ENV", "MOD", "FX", "PATCH" };
     const float tabW = tabRow.getWidth() / 14.0f;
-    g.setFont (juce::Font (juce::FontOptions (11.0f).withTypefaceStyle ("Bold")));
+    g.setFont (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
     auto tabCursor = tabRow.removeFromLeft (tabW * 7.0f);
     for (int i = 0; i < tabs.size(); ++i)
     {
@@ -454,12 +454,12 @@ void OB8Editor::paint (juce::Graphics& g)
                                         : juce::String (idx));
 
         g.setColour (LF::panelAccent());
-        g.setFont (juce::Font (juce::FontOptions (10.5f).withTypefaceStyle ("Bold")));
+        g.setFont (juce::Font (juce::FontOptions (10.5f).withStyle ("Bold")));
         g.drawText (indexStr, titleStrip.removeFromLeft (20.0f),
                     juce::Justification::centredLeft);
 
         g.setColour (LF::panelDark());
-        g.setFont (juce::Font (juce::FontOptions (10.5f).withTypefaceStyle ("Bold")));
+        g.setFont (juce::Font (juce::FontOptions (10.5f).withStyle ("Bold")));
         g.drawText (s.title, titleStrip, juce::Justification::centredLeft);
     }
 
@@ -477,7 +477,7 @@ void OB8Editor::paint (juce::Graphics& g)
         { "DATE",   "2026.05" },
     };
     const float colW = footer.getWidth() / 5.0f;
-    g.setFont (juce::Font (juce::FontOptions (8.5f).withTypefaceStyle ("Bold")));
+    g.setFont (juce::Font (juce::FontOptions (8.5f).withStyle ("Bold")));
     for (int i = 0; i < 5; ++i)
     {
         auto cell = footer.removeFromLeft (colW);
@@ -491,9 +491,9 @@ void OB8Editor::paint (juce::Graphics& g)
         g.drawText (fields[i][0], inner.removeFromTop (10.0f),
                     juce::Justification::centredLeft);
         g.setColour (LF::panelDark());
-        g.setFont (juce::Font (juce::FontOptions (10.5f).withTypefaceStyle ("Bold")));
+        g.setFont (juce::Font (juce::FontOptions (10.5f).withStyle ("Bold")));
         g.drawText (fields[i][1], inner, juce::Justification::centredLeft);
-        g.setFont (juce::Font (juce::FontOptions (8.5f).withTypefaceStyle ("Bold")));
+        g.setFont (juce::Font (juce::FontOptions (8.5f).withStyle ("Bold")));
     }
 }
 

@@ -126,7 +126,7 @@ void OB8LookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& b,
 
     bounds.removeFromLeft (size + 6.0f);
     g.setColour (panelDark());
-    g.setFont (juce::Font (juce::FontOptions (11.0f).withTypefaceStyle ("Bold")));
+    g.setFont (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
     g.drawText (b.getButtonText(), bounds.toNearestInt(),
                 juce::Justification::centredLeft, false);
 }
@@ -163,17 +163,17 @@ void OB8LookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b,
 
 juce::Font OB8LookAndFeel::getLabelFont (juce::Label& l)
 {
-    return juce::Font (juce::FontOptions (l.getFont().getHeight()).withTypefaceStyle ("Plain"));
+    return juce::Font (juce::FontOptions (l.getFont().getHeight()).withStyle ("Plain"));
 }
 
 juce::Font OB8LookAndFeel::getComboBoxFont (juce::ComboBox&)
 {
-    return juce::Font (juce::FontOptions (12.0f).withTypefaceStyle ("Plain"));
+    return juce::Font (juce::FontOptions (12.0f).withStyle ("Plain"));
 }
 
 juce::Font OB8LookAndFeel::getTextButtonFont (juce::TextButton&, int)
 {
-    return juce::Font (juce::FontOptions (11.0f).withTypefaceStyle ("Plain"));
+    return juce::Font (juce::FontOptions (11.0f).withStyle ("Plain"));
 }
 
 } // namespace ob8
