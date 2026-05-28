@@ -4,6 +4,7 @@
 #include "GUI/OB8LookAndFeel.h"
 #include "GUI/OB8Knob.h"
 #include "GUI/ModChip.h"
+#include "GUI/WaveformPreview.h"
 
 #include <juce_audio_utils/juce_audio_utils.h>   // MidiKeyboardComponent
 
@@ -22,6 +23,13 @@ public:
     using juce::MidiKeyboardComponent::MidiKeyboardComponent;
     using juce::MidiKeyboardComponent::keyPressed;
     using juce::MidiKeyboardComponent::keyStateChanged;
+
+    /*  Per HAIRLINE-VIII §6.12: C white keys carry a small octave label
+        (C1, C2, ...) at their bottom edge. Other white keys render unchanged. */
+    void drawWhiteNote (int midiNoteNumber, juce::Graphics& g,
+                        juce::Rectangle<float> area,
+                        bool isDown, bool isOver,
+                        juce::Colour lineColour, juce::Colour textColour) override;
 };
 
 class OB8Editor : public juce::AudioProcessorEditor,
@@ -55,12 +63,14 @@ private:
 
     // ---- Page 1 controls ----------------------------------------------------
     // VCO 1
-    std::unique_ptr<OB8Choice> vco1Oct, vco1Wave;
-    std::unique_ptr<OB8Knob>   vco1Pw;
+    std::unique_ptr<OB8Choice>       vco1Oct;
+    std::unique_ptr<WaveformPreview> vco1Wave;
+    std::unique_ptr<OB8Knob>         vco1Pw;
 
     // VCO 2
-    std::unique_ptr<OB8Choice> vco2Oct, vco2Wave;
-    std::unique_ptr<OB8Knob>   vco2Pw, vco2Detune;
+    std::unique_ptr<OB8Choice>       vco2Oct;
+    std::unique_ptr<WaveformPreview> vco2Wave;
+    std::unique_ptr<OB8Knob>         vco2Pw, vco2Detune;
 
     // X-MOD / sync
     std::unique_ptr<OB8Knob>   xMod;
@@ -80,8 +90,8 @@ private:
     std::unique_ptr<OB8Knob> ampA, ampD, ampS, ampR;
 
     // LFO
-    std::unique_ptr<OB8Knob>   lfoRate, lfoToVco1, lfoToVco2, lfoToPwm;
-    std::unique_ptr<OB8Choice> lfoShape;
+    std::unique_ptr<OB8Knob>         lfoRate, lfoToVco1, lfoToVco2, lfoToPwm;
+    std::unique_ptr<WaveformPreview> lfoShape;
 
     // Velocity
     std::unique_ptr<OB8Knob> velToVca, velToVcf;
@@ -160,6 +170,10 @@ private:
     // octave). Constructed in the .cpp initialiser list with the
     // processor's MidiKeyboardState.
     FocusableKeyboard keyboard;
+
+    // Dimension line drawn below the keyboard (HAIRLINE-VIII §6.12). Set in
+    // resized(), rendered in paint().
+    juce::Rectangle<int> keyboardDimBounds;
 
     std::vector<Section> sections;
 
