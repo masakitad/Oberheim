@@ -23,7 +23,8 @@ public:
     using juce::MidiKeyboardComponent::keyStateChanged;
 };
 
-class OB8Editor : public juce::AudioProcessorEditor
+class OB8Editor : public juce::AudioProcessorEditor,
+                  private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     explicit OB8Editor (OB8Processor&);
@@ -34,6 +35,11 @@ public:
     void visibilityChanged() override;
     bool keyPressed (const juce::KeyPress&) override;
     bool keyStateChanged (bool isKeyDown) override;
+
+private:
+    void parameterChanged (const juce::String& paramID, float newValue) override;
+
+public:
 
 private:
     struct Section
@@ -108,6 +114,14 @@ private:
     juce::Label       octaveLabel { {}, "C3" };
     int               pcKeyboardBaseOctave { 4 };  // makes 'A' = MIDI 48 = C3
     void updateOctaveLabel();
+
+    // SIMPLE-view macros + the view-mode selector itself
+    std::unique_ptr<OB8Knob>   macroTone, macroMotion, macroSpace;
+    juce::ComboBox             viewModeCombo;
+    juce::Label                viewModeLabel { {}, "VIEW" };
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment>
+                               viewModeAttach;
+    void applyViewMode();
 
     // ---- Patch management ---------------------------------------------------
     juce::ComboBox bankCombo, programCombo;

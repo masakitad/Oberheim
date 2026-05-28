@@ -66,6 +66,7 @@ target_sources(OB8Native PRIVATE
     Source/Parameters.cpp
     Source/Parameters.h
     Source/FactoryPresets.h
+    Source/MacroBridge.h
     Source/DSP/Voice.cpp
     Source/DSP/Voice.h
     Source/DSP/PolyBLEPOscillator.h

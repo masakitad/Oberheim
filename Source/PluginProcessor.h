@@ -5,6 +5,7 @@
 #include <juce_dsp/juce_dsp.h>
 
 #include "Parameters.h"
+#include "MacroBridge.h"
 #include "DSP/Voice.h"
 #include "DSP/LFO.h"
 #include "DSP/Oversampler.h"
@@ -98,6 +99,9 @@ private:
     // Post effects (run at host sample rate, after downsampling)
     dsp::StereoDelay delay;
     dsp::FDNReverb   reverb;
+
+    // Simple-view macro-to-parameter bridge. Constructed after apvts.
+    MacroBridge macros { apvts };
 
     // Scratch buffers
     juce::AudioBuffer<float> mixBuffer;

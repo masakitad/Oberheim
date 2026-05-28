@@ -107,6 +107,14 @@ namespace ParamID
     static constexpr auto reverbModulation = "reverb_modulation";  // 0..0.005 s
     static constexpr auto reverbWidth      = "reverb_width";       // 0..1
     static constexpr auto reverbMix        = "reverb_mix";         // 0..1
+
+    // Simple-view macros (each drives several underlying parameters
+    // via MacroBridge). Use these as "macros" / "intuitive controls"
+    // for the SIMPLE editor layout.
+    static constexpr auto macroTone    = "macro_tone";    // 0..1
+    static constexpr auto macroMotion  = "macro_motion";  // 0..1
+    static constexpr auto macroSpace   = "macro_space";   // 0..1
+    static constexpr auto viewMode     = "view_mode";     // 0=Full, 1=Simple
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

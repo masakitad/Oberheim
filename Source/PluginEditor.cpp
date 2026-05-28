@@ -133,6 +133,28 @@ OB8Editor::OB8Editor (OB8Processor& p)
     splitDetune .reset (new OB8Knob   (apvts, ParamID::splitDetune,       "S DET"));
     doubleDetune.reset (new OB8Knob   (apvts, ParamID::doubleDetune,      "D DET"));
 
+    // Simple-view macros
+    macroTone  .reset (new OB8Knob (apvts, ParamID::macroTone,   "TONE"));
+    macroMotion.reset (new OB8Knob (apvts, ParamID::macroMotion, "MOTION"));
+    macroSpace .reset (new OB8Knob (apvts, ParamID::macroSpace,  "SPACE"));
+    addAndMakeVisible (*macroTone);
+    addAndMakeVisible (*macroMotion);
+    addAndMakeVisible (*macroSpace);
+
+    // View-mode selector lives in the header area regardless of mode
+    addAndMakeVisible (viewModeLabel);
+    addAndMakeVisible (viewModeCombo);
+    viewModeLabel.setFont    (OB8LookAndFeel::monoBold (9.0f).withExtraKerningFactor (0.10f));
+    viewModeLabel.setColour  (juce::Label::textColourId, OB8LookAndFeel::panelMute());
+    viewModeLabel.setJustificationType (juce::Justification::centredRight);
+    viewModeCombo.addItem ("FULL",   1);
+    viewModeCombo.addItem ("SIMPLE", 2);
+    viewModeAttach.reset (new juce::AudioProcessorValueTreeState::ComboBoxAttachment (
+        apvts, ParamID::viewMode, viewModeCombo));
+
+    // Listen for view-mode changes so we can swap the visible UI
+    apvts.addParameterListener (ParamID::viewMode, this);
+
     // Patch management
     addAndMakeVisible (bankLabel);
     addAndMakeVisible (programLabel);
@@ -244,6 +266,9 @@ OB8Editor::OB8Editor (OB8Processor& p)
     setResizable (true, true);
     setResizeLimits (1180, 820, 1920, 1300);
     setSize (1280, 880);
+
+    // Initial visibility based on the persisted view mode parameter.
+    applyViewMode();
 }
 
 void OB8Editor::updateOctaveLabel()
@@ -257,7 +282,53 @@ void OB8Editor::updateOctaveLabel()
 
 OB8Editor::~OB8Editor()
 {
+    processorRef.apvts.removeParameterListener (ParamID::viewMode, this);
     setLookAndFeel (nullptr);
+}
+
+void OB8Editor::parameterChanged (const juce::String& id, float /*newValue*/)
+{
+    if (id == ParamID::viewMode)
+    {
+        // The APVTS listener fires on the parameter-change thread; bounce
+        // back to the message thread before touching component visibility.
+        juce::MessageManager::callAsync (
+            [safe = juce::Component::SafePointer (this)]
+        {
+            if (safe != nullptr) safe->applyViewMode();
+        });
+    }
+}
+
+void OB8Editor::applyViewMode()
+{
+    const int mode = static_cast<int> (
+        processorRef.apvts.getRawParameterValue (ParamID::viewMode)->load());
+    const bool simple = (mode == 1);
+
+    // 3 macro knobs visible only in SIMPLE
+    if (macroTone)   macroTone  ->setVisible (simple);
+    if (macroMotion) macroMotion->setVisible (simple);
+    if (macroSpace)  macroSpace ->setVisible (simple);
+
+    // All section children + the bank-management widgets are FULL-only
+    for (auto& s : sections)
+        for (auto* c : s.children)
+            if (c != nullptr) c->setVisible (! simple);
+
+    bankLabel.setVisible      (! simple);
+    programLabel.setVisible   (! simple);
+    patchNameLabel.setVisible (! simple);
+    bankCombo.setVisible      (! simple);
+    programCombo.setVisible   (! simple);
+    patchNameEdit.setVisible  (! simple);
+    storeBtn.setVisible       (! simple);
+    recallBtn.setVisible      (! simple);
+    saveBankBtn.setVisible    (! simple);
+    loadBankBtn.setVisible    (! simple);
+
+    resized();
+    repaint();
 }
 
 void OB8Editor::visibilityChanged()
@@ -522,6 +593,16 @@ void OB8Editor::layoutSection (Section& s, juce::Rectangle<int> bounds, int cols
 void OB8Editor::resized()
 {
     auto bounds = getLocalBounds();
+
+    // View-mode selector sits in the top-right of the header band so it's
+    // reachable from either layout.
+    {
+        const int viewW = 120, viewH = 22;
+        const int x = getWidth() - 12 - viewW;
+        viewModeLabel.setBounds (x - 50, 10, 50, viewH);
+        viewModeCombo.setBounds (x,      10, viewW, viewH);
+    }
+
     // Header (44 px) drawn in paint() -- no anchor tab row in this build
     bounds.removeFromTop (44);
     // Engineering title-block footer (24 px) drawn in paint()
@@ -544,6 +625,36 @@ void OB8Editor::resized()
     octUpBtn  .setBounds (btnStrip.reduced (2));
 
     bounds.removeFromBottom (6);
+
+    // ---- SIMPLE view: 3 large macros, centred --------------------------
+    const int mode = static_cast<int> (
+        processorRef.apvts.getRawParameterValue (ParamID::viewMode)->load());
+    if (mode == 1)
+    {
+        const int gap = 18;
+        const int colW = (bounds.getWidth() - 2 * gap) / 3;
+        const int reserve = juce::jmax (40, (bounds.getHeight() / 8));
+        auto inner = bounds.reduced (gap, reserve);
+
+        auto layout = [&] (OB8Knob& k, juce::Rectangle<int> r)
+        {
+            // Keep the macro knobs roughly square for a generous rotary
+            const int side = juce::jmin (r.getWidth(), r.getHeight());
+            r = r.withSizeKeepingCentre (side, r.getHeight());
+            k.setBounds (r);
+        };
+
+        layout (*macroTone,   inner.removeFromLeft (colW));
+        inner.removeFromLeft (gap);
+        layout (*macroMotion, inner.removeFromLeft (colW));
+        inner.removeFromLeft (gap);
+        layout (*macroSpace,  inner);
+
+        // Clear section bounds so paint() skips frames
+        for (auto& s : sections) s.bounds = {};
+        return;
+    }
+
     keyboard.setBounds (kbdBounds);
 
     // Allocate the four rows proportionally so the window resizes cleanly.

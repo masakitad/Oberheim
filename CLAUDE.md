@@ -168,7 +168,22 @@ if (! ampEnv.isActive()) { active = false; currentMidiNote = -1; }
 - **フッタ**: 6 カラムの製図シート風タイトルブロック (TITLE / SERIES / SCALE / SHEET / REV / DATE)、各カラムの上に小さい mute caption + 下に bold 値
 - **上部タブ / 下部プリセット strip は無し** (UX ノイズなのでカット)
 
-## GUI レイアウト
+## ビューモード (FULL / SIMPLE)
+
+ヘッダ右上の `VIEW` コンボから切り替え。状態は `view_mode` パラメータ (0=Full, 1=Simple)。
+
+- **FULL**: 全 14 セクション + Patch Bank
+- **SIMPLE**: `TONE` / `MOTION` / `SPACE` の 3 マクロのみを大きく表示
+
+マクロは APVTS パラメータ `macro_tone` / `macro_motion` / `macro_space` (0..1)。`Source/MacroBridge.h` の `MacroBridge` (Processor が所有) が APVTS リスナーとして:
+
+- `macro_tone` → cutoff (80Hz..20kHz log) + envAmount + resonance + filtD
+- `macro_motion` → lfoToVcf + lfoRate + lfoToVco1 + driftDepth + lfoToPwm
+- `macro_space` → reverbMix + reverbDecay + delayMix + delayFeedback
+
+を 1 → N 連動で書き換える。
+
+## GUI レイアウト (FULL)
 
 エディタは 1280 × 880 (min 1180 × 820、リサイズ可)。ヘッダ 44 / フッタ 24 / キーボード ~76 / インナー余白 8 / 行間ギャップ 6 のコンパクト構成。`OB8Editor::resized()` が:
 
