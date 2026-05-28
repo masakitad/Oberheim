@@ -461,23 +461,6 @@ void OB8Editor::paint (juce::Graphics& g)
         g.drawText (s.title, titleStrip, juce::Justification::centredLeft);
     }
 
-    // ---- DRAFT watermark -----------------------------------------------
-    // Big diagonal grey italic across the centre of the panel. Drawn
-    // behind everything? No -- behind nothing; we draw it AFTER the
-    // section fills but it has very low alpha so the controls show through.
-    {
-        juce::Graphics::ScopedSaveState ss (g);
-        auto fb = getLocalBounds().toFloat();
-        const float cx = fb.getCentreX();
-        const float cy = fb.getCentreY();
-        g.addTransform (juce::AffineTransform::rotation (-0.42f, cx, cy));
-        g.setColour (LF::panelMute().withAlpha (0.10f));
-        g.setFont (LF::monoItalic (200.0f).withExtraKerningFactor (0.20f));
-        g.drawText ("DRAFT", static_cast<int> (cx - 400),
-                              static_cast<int> (cy - 100), 800, 200,
-                    juce::Justification::centred);
-    }
-
     // ---- Footer (engineering title block) ------------------------------
     auto footer = fullBounds; // local copy of full editor bounds
     footer = footer.removeFromBottom (38.0f).reduced (12.0f, 6.0f);

@@ -7,60 +7,90 @@
 namespace ob8 {
 
 namespace {
-juce::Typeface::Ptr loadBundled (const void* data, int size)
-{
-    return juce::Typeface::createSystemTypefaceFor (data, static_cast<size_t> (size));
-}
 
-/*  Fallback when the bundled IBM Plex Mono download didn't succeed at
-    configure time. We grab whichever system monospace face is available
-    so the editor still renders cleanly. */
-juce::Typeface::Ptr loadSystemMono (juce::Font::FontStyleFlags style)
+/*  System-monospace fallback. Used when the bundled IBM Plex Mono is
+    missing (CMake couldn't fetch) AND as a safety net any time the
+    bundled TTF data turns out to be unusable at runtime. We use the
+    legacy juce::Font(name,height,styleFlags) constructor because the
+    FontOptions overload that takes FontStyleFlags doesn't exist in
+    JUCE 8 (its 3-arg form is (name, style-as-string, height)). */
+juce::Typeface::Ptr loadSystemMono (bool bold, bool italic)
 {
-    juce::Font::FontStyleFlags resolved = style;
-    juce::Font f (juce::FontOptions ("Menlo", 12.0f, resolved));
-    if (f.getTypefaceName().isEmpty())
-        f = juce::Font (juce::FontOptions ("Monaco", 12.0f, resolved));
+    juce::String name = juce::Font::getDefaultMonospacedFontName();
+    if (name.isEmpty()) name = "Menlo";
+
+    int flags = juce::Font::plain;
+    if (bold)   flags |= juce::Font::bold;
+    if (italic) flags |= juce::Font::italic;
+    juce::Font f (name, 12.0f, flags);
     return juce::Typeface::createSystemTypefaceFor (f);
 }
+
+juce::Typeface::Ptr tryBundled (const char* data, int size,
+                                bool bold, bool italic)
+{
+    if (data != nullptr && size > 0)
+    {
+        if (auto tf = juce::Typeface::createSystemTypefaceFor (
+                data, static_cast<size_t> (size)))
+            return tf;
+    }
+    return loadSystemMono (bold, italic);
+}
+
 } // namespace
 
 juce::Typeface::Ptr OB8LookAndFeel::getMonoRegular()
 {
-   #if OB8_HAS_BUNDLED_FONT
-    static juce::Typeface::Ptr tf = loadBundled (
-        BinaryData::IBMPlexMonoRegular_ttf, BinaryData::IBMPlexMonoRegular_ttfSize);
-   #else
-    static juce::Typeface::Ptr tf = loadSystemMono (juce::Font::plain);
-   #endif
+    static juce::Typeface::Ptr tf =
+       #if OB8_HAS_BUNDLED_FONT
+        tryBundled (BinaryData::IBMPlexMonoRegular_ttf,
+                    BinaryData::IBMPlexMonoRegular_ttfSize, false, false);
+       #else
+        loadSystemMono (false, false);
+       #endif
     return tf;
 }
 
 juce::Typeface::Ptr OB8LookAndFeel::getMonoBold()
 {
-   #if OB8_HAS_BUNDLED_FONT
-    static juce::Typeface::Ptr tf = loadBundled (
-        BinaryData::IBMPlexMonoBold_ttf, BinaryData::IBMPlexMonoBold_ttfSize);
-   #else
-    static juce::Typeface::Ptr tf = loadSystemMono (juce::Font::bold);
-   #endif
+    static juce::Typeface::Ptr tf =
+       #if OB8_HAS_BUNDLED_FONT
+        tryBundled (BinaryData::IBMPlexMonoBold_ttf,
+                    BinaryData::IBMPlexMonoBold_ttfSize, true, false);
+       #else
+        loadSystemMono (true, false);
+       #endif
     return tf;
 }
 
 juce::Typeface::Ptr OB8LookAndFeel::getMonoItalic()
 {
-   #if OB8_HAS_BUNDLED_FONT
-    static juce::Typeface::Ptr tf = loadBundled (
-        BinaryData::IBMPlexMonoItalic_ttf, BinaryData::IBMPlexMonoItalic_ttfSize);
-   #else
-    static juce::Typeface::Ptr tf = loadSystemMono (juce::Font::italic);
-   #endif
+    static juce::Typeface::Ptr tf =
+       #if OB8_HAS_BUNDLED_FONT
+        tryBundled (BinaryData::IBMPlexMonoItalic_ttf,
+                    BinaryData::IBMPlexMonoItalic_ttfSize, false, true);
+       #else
+        loadSystemMono (false, true);
+       #endif
     return tf;
 }
 
-juce::Font OB8LookAndFeel::monoRegular (float h) { return juce::Font (getMonoRegular()).withHeight (h); }
-juce::Font OB8LookAndFeel::monoBold    (float h) { return juce::Font (getMonoBold())   .withHeight (h); }
-juce::Font OB8LookAndFeel::monoItalic  (float h) { return juce::Font (getMonoItalic()) .withHeight (h); }
+juce::Font OB8LookAndFeel::monoRegular (float h)
+{
+    if (auto tf = getMonoRegular()) return juce::Font (tf).withHeight (h);
+    return juce::Font (juce::Font::getDefaultMonospacedFontName(), h, juce::Font::plain);
+}
+juce::Font OB8LookAndFeel::monoBold (float h)
+{
+    if (auto tf = getMonoBold()) return juce::Font (tf).withHeight (h);
+    return juce::Font (juce::Font::getDefaultMonospacedFontName(), h, juce::Font::bold);
+}
+juce::Font OB8LookAndFeel::monoItalic (float h)
+{
+    if (auto tf = getMonoItalic()) return juce::Font (tf).withHeight (h);
+    return juce::Font (juce::Font::getDefaultMonospacedFontName(), h, juce::Font::italic);
+}
 
 OB8LookAndFeel::OB8LookAndFeel()
 {
@@ -89,14 +119,19 @@ OB8LookAndFeel::OB8LookAndFeel()
     setColour (juce::TextEditor::textColourId,            panelDark());
     setColour (juce::TextEditor::outlineColourId,         panelDark());
 
-    setDefaultSansSerifTypeface (getMonoRegular());
+    if (auto tf = getMonoRegular())
+        setDefaultSansSerifTypeface (tf);
 }
 
 juce::Typeface::Ptr OB8LookAndFeel::getTypefaceForFont (const juce::Font& f)
 {
-    if (f.getStyleFlags() & juce::Font::italic) return getMonoItalic();
-    if (f.getStyleFlags() & juce::Font::bold  ) return getMonoBold();
-    return getMonoRegular();
+    juce::Typeface::Ptr tf;
+    if      (f.getStyleFlags() & juce::Font::italic) tf = getMonoItalic();
+    else if (f.getStyleFlags() & juce::Font::bold)   tf = getMonoBold();
+    else                                             tf = getMonoRegular();
+    if (tf) return tf;
+    // Never return null -- JUCE draw paths assume a valid typeface.
+    return LookAndFeel_V4::getTypefaceForFont (f);
 }
 
 /*  Rotary slider -- kept as a fallback for any legacy rotary caller. */
