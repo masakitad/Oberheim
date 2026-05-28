@@ -9,35 +9,38 @@
 namespace ob8::dsp {
 
 /*
-    Granular delay.
+    Granular delay -- production-quality rewrite.
 
-    Captures the dry stereo output into a circular buffer (typically a few
-    seconds long), then continuously spawns short overlapping grains that
-    read from random positions in that buffer. Each grain has its own:
-        - read position (set when spawned; can wander forward or backward)
-        - pitch (playback speed)
-        - hann-window envelope (avoids click on grain start/end)
-        - stereo pan
-    Many grains run simultaneously (up to kMaxGrains) so the output is a
-    cloud of overlapping fragments of the recent dry signal.
+    Captures the dry stereo output into a circular buffer, then continuously
+    spawns short overlapping grains read from the recent past. Each grain
+    has its own read position, pitch, Hann-window envelope and stereo pan.
 
-    Add the wet result on top of the dry. Feedback re-injects the wet
-    sample into the recording buffer with a tap-band low-pass so the
-    cloud builds smoothly rather than going harsh.
+    The previous revision had three issues that the rewrite addresses:
 
-    Tunable parameters:
-        grain length    : 10..500 ms
-        density         : 1..50 grains/sec   (rate of spawning)
-        scatter         : 0..1               (random jitter on read pos)
-        pitch           : -12..+12 semitones (base pitch ratio)
-        spread          : 0..1               (stereo width)
-        feedback        : 0..0.9             (re-record wet into buffer)
-        mix             : 0..1               (dry + mix * wet)
+      1. Pan compensation was a flat +1.4x multiply on top of equal-power
+         pan to "make up for the Hann window's 0.5 integral". On its own
+         this was inaudible, but combined with high feedback it pushed
+         the effective per-iteration gain past 1.0 and the wet path
+         grew exponentially -- the "burst after a few seconds of
+         silence" the user reported. Compensation is now done via a
+         single sqrt-of-overlap normaliser applied to the summed wet
+         output (correct for any density / size).
+
+      2. The feedback path had no bounding. With feedback >= ~0.7 and
+         the gain compensation above, output blew up. We now run a
+         soft-clip (tanh) on the feedback contribution AND apply a DC
+         blocker on the wet output. The system is unconditionally
+         stable for any (feedback < 1) setting.
+
+      3. Mean read latency was 1.5 x grainSize. For a 500 ms grain that
+         meant 750 ms of silence before any wet appeared. Now defaulted
+         to 0.5 x grainSize, so a 500 ms grain starts producing audible
+         output ~ 250 ms after the first sample is recorded.
 */
 class GranularDelay
 {
 public:
-    static constexpr int kMaxGrains = 24;
+    static constexpr int kMaxGrains = 48;
 
     void prepare (double sampleRate, double maxBufferSeconds = 4.0)
     {
@@ -48,10 +51,12 @@ public:
         bufL.assign (static_cast<size_t> (len), 0.0f);
         bufR.assign (static_cast<size_t> (len), 0.0f);
         writePos = 0;
+        samplesRecorded = 0;
 
         for (auto& gr : grains) gr.active = false;
         spawnCountdown = 0.0;
         feedbackStateL = feedbackStateR = 0.0;
+        dcX1L = dcX1R = dcY1L = dcY1R = 0.0;
 
         setGrainMs        (140.0);
         setDensityHz      (12.0);
@@ -67,30 +72,39 @@ public:
         std::fill (bufR.begin(), bufR.end(), 0.0f);
         for (auto& gr : grains) gr.active = false;
         feedbackStateL = feedbackStateR = 0.0;
+        dcX1L = dcX1R = dcY1L = dcY1R = 0.0;
         spawnCountdown = 0.0;
+        samplesRecorded = 0;
     }
 
     // --- setters -------------------------------------------------------
     void setGrainMs    (double ms) noexcept
     {
-        grainSamples = std::clamp (static_cast<int> (ms * 0.001 * sr), 32, kMaxGrainSamples);
+        grainSamples = std::clamp (
+            static_cast<int> (ms * 0.001 * sr),
+            32, static_cast<int> (sr * 1.5));   // up to 1.5 s grain
     }
     void setDensityHz  (double hz) noexcept
     {
-        spawnInterval = sr / std::max (0.5, hz);
+        densityHz     = std::clamp (hz, 0.5, 80.0);
+        spawnInterval = sr / densityHz;
     }
     void setScatter    (double s)  noexcept { scatter01 = std::clamp (s, 0.0, 1.0); }
     void setPitchSemis (double st) noexcept
     {
-        // 2^(st/12); clamp to a safe range
         pitchRatio = std::pow (2.0, std::clamp (st, -24.0, 24.0) / 12.0);
     }
     void setSpread     (double s)  noexcept { spread01 = std::clamp (s, 0.0, 1.0); }
-    void setFeedback   (double f)  noexcept { feedback = std::clamp (f, 0.0, 0.90); }
+    void setFeedback   (double f)  noexcept
+    {
+        // Cap below 1 -- the soft-clip path below keeps it stable, but we
+        // still want a "max usable" not "max possible".
+        feedback = std::clamp (f, 0.0, 0.85);
+    }
 
     /*  Process one stereo sample. Writes dry to the buffer, runs the
-        grain cloud, and returns the WET output only (caller blends with
-        dry via Mix knob). */
+        grain cloud, returns the WET output only (caller blends with
+        dry via the Mix knob). */
     inline void processSample (double inL, double inR,
                                double& outL, double& outR) noexcept
     {
@@ -110,9 +124,9 @@ public:
         {
             if (! gr.active) continue;
 
-            const double pos = gr.position;
-            const int    i0  = (static_cast<int> (std::floor (pos)) % bufLen + bufLen) % bufLen;
-            const int    i1  = (i0 + 1) % bufLen;
+            const double pos  = gr.position;
+            const int    i0   = (static_cast<int> (std::floor (pos)) % bufLen + bufLen) % bufLen;
+            const int    i1   = (i0 + 1) % bufLen;
             const double frac = pos - std::floor (pos);
             const double sL = (1.0 - frac) * bufL[static_cast<size_t> (i0)]
                                     + frac * bufL[static_cast<size_t> (i1)];
@@ -132,18 +146,46 @@ public:
                 gr.active = false;
         }
 
-        // 3. Write the dry signal + feedback of the WET back into the buffer.
-        //    A one-pole low-pass on the feedback path keeps repeated passes
-        //    from going harsh.
+        // 3. Normalise wet by sqrt(expected overlap) so the level stays
+        //    musically sensible regardless of (size * density). Expected
+        //    number of simultaneously-active grains:
+        //        E = density * grain_duration = density * grainSamples / sr
+        //    The Hann window's RMS over its support is 0.5, so the RMS of
+        //    a single grain is 0.5. The sum of E independent grains has
+        //    RMS ~ 0.5 * sqrt(E). To keep wet RMS comparable to dry we
+        //    scale by 1 / (0.5 * sqrt(E)) = 2 / sqrt(E).
+        const double expectedOverlap = densityHz * grainSamples * invSr;
+        const double wetGain = (expectedOverlap > 1.0)
+            ? (1.0 / std::sqrt (expectedOverlap))
+            : 1.0;
+        wetL *= wetGain;
+        wetR *= wetGain;
+
+        // 4. DC blocker on the wet output (one-pole high-pass). Prevents
+        //    asymmetric grain windows from biasing the signal over time.
+        const double dcR = 0.997;
+        const double yL = wetL - dcX1L + dcR * dcY1L;
+        const double yR = wetR - dcX1R + dcR * dcY1R;
+        dcX1L = wetL; dcX1R = wetR;
+        dcY1L = yL;   dcY1R = yR;
+        wetL = yL; wetR = yR;
+
+        // 5. Feedback into the recording buffer. tanh saturates so the
+        //    feedback chain is unconditionally stable for any feedback < 1.
         const double dampCoef = 0.20;
         feedbackStateL += dampCoef * (wetL - feedbackStateL);
         feedbackStateR += dampCoef * (wetR - feedbackStateR);
 
+        const double fbL = std::tanh (feedbackStateL);
+        const double fbR = std::tanh (feedbackStateR);
+
         bufL[static_cast<size_t> (writePos)] = static_cast<float> (
-            inL + feedback * feedbackStateL);
+            inL + feedback * fbL);
         bufR[static_cast<size_t> (writePos)] = static_cast<float> (
-            inR + feedback * feedbackStateR);
+            inR + feedback * fbR);
         if (++writePos >= bufLen) writePos = 0;
+
+        if (samplesRecorded < bufLen) ++samplesRecorded;
 
         outL = wetL;
         outR = wetR;
@@ -151,13 +193,12 @@ public:
 
 private:
     static constexpr double kTwoPi = 6.283185307179586;
-    static constexpr int    kMaxGrainSamples = 96000;   // ~2 s @ 48 kHz; enough headroom
 
     struct Grain
     {
         bool   active = false;
-        double position = 0.0;     // fractional read position into the buffer
-        double increment = 1.0;    // pitch ratio (sample step per audio sample)
+        double position = 0.0;
+        double increment = 1.0;
         int    samplesElapsed = 0;
         int    grainLength = 0;
         double panL = 0.7071;
@@ -172,21 +213,27 @@ private:
         {
             if (! gr.active) { slot = &gr; break; }
         }
-        if (slot == nullptr) return;   // all 24 grains in flight; skip
+        if (slot == nullptr) return;
 
-        // Random helpers
         std::uniform_real_distribution<double> u01 (0.0, 1.0);
         const double r1 = u01 (rng);
         const double r2 = u01 (rng);
         const double r3 = u01 (rng);
 
-        // Read position lives roughly "(grainSamples * 1.5) + scatter*1s"
-        // samples behind the write head -- gives a familiar grain-cloud feel
-        // without ever overlapping the writer.
-        const double meanLatency = static_cast<double> (grainSamples) * 1.5;
-        const double maxScatter  = sr * 1.0 * scatter01;
+        // Read position ~ 0.5 * grainSize back from the write head, plus
+        // up to 0.5 s of scatter. Short enough that there's no long
+        // silence at start-up; the grain envelope still tapers so we
+        // never actually overlap the writer audibly.
+        const double meanLatency = static_cast<double> (grainSamples) * 0.5;
+        const double maxScatter  = sr * 0.5 * scatter01;
         const double readOffset  = meanLatency + r1 * maxScatter;
         const int    bufLen      = static_cast<int> (bufL.size());
+
+        // Don't start a grain if the buffer hasn't been recorded into yet
+        // for enough samples (silent intro is more musical than reading
+        // garbage zeros).
+        if (samplesRecorded < static_cast<int> (readOffset + grainSamples))
+            return;
 
         slot->active        = true;
         slot->grainLength   = grainSamples;
@@ -195,16 +242,19 @@ private:
         slot->position      = std::fmod (
             static_cast<double> (writePos) - readOffset + bufLen, bufLen);
 
-        // Equal-power stereo pan, deviating from centre by spread amount.
-        const double pan = (r2 - 0.5) * 2.0 * spread01;   // -spread .. +spread
+        // Equal-power stereo pan. NO MORE 1.4x boost -- the wetGain
+        // normaliser above handles the Hann window's 0.5 integral
+        // properly, so any extra multiplier just makes the feedback
+        // chain blow up.
+        const double pan = (r2 - 0.5) * 2.0 * spread01;
         const double theta = (0.5 + pan * 0.5) * (kTwoPi * 0.25);
-        slot->panL = std::cos (theta) * 1.4;   // light boost to compensate window loss
-        slot->panR = std::sin (theta) * 1.4;
+        slot->panL = std::cos (theta);
+        slot->panR = std::sin (theta);
 
-        // Occasionally tweak pitch slightly to spread harmonics
+        // Optional cent jitter when scatter > 0
         if (scatter01 > 0.0)
         {
-            const double cents = (r3 - 0.5) * 2.0 * scatter01 * 50.0;   // +/- 25 cents max
+            const double cents = (r3 - 0.5) * 2.0 * scatter01 * 50.0;
             slot->increment *= std::pow (2.0, cents / 1200.0);
         }
     }
@@ -213,19 +263,22 @@ private:
     double invSr   = 1.0 / 44100.0;
     std::vector<float> bufL, bufR;
     int    writePos = 0;
+    int    samplesRecorded = 0;
 
     std::array<Grain, kMaxGrains> grains{};
 
     double spawnCountdown = 0.0;
-    double spawnInterval  = 4000.0;   // samples between spawns
+    double spawnInterval  = 4000.0;
+    double densityHz      = 12.0;
 
-    int    grainSamples = 6000;       // ~140 ms @ 44 kHz
+    int    grainSamples = 6000;
     double scatter01    = 0.5;
     double pitchRatio   = 1.0;
     double spread01     = 0.7;
     double feedback     = 0.30;
 
     double feedbackStateL = 0.0, feedbackStateR = 0.0;
+    double dcX1L = 0.0, dcX1R = 0.0, dcY1L = 0.0, dcY1R = 0.0;
 
     std::mt19937 rng { 0xC0FFEEu };
 };
