@@ -109,6 +109,9 @@ private:
     // Reverb
     std::unique_ptr<OB8Knob> rvbSize, rvbDecay, rvbDamp, rvbPre, rvbMod, rvbWidth, rvbMix;
 
+    // Granular delay
+    std::unique_ptr<OB8Knob> grSize, grDensity, grScatter, grPitch, grSpread, grFeedback, grMix;
+
     // Keyboard octave shift UI
     juce::TextButton  octDownBtn { "<" }, octUpBtn { ">" };
     juce::Label       octaveLabel { {}, "C3" };

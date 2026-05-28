@@ -116,6 +116,15 @@ OB8Editor::OB8Editor (OB8Processor& p)
     rvbWidth.reset (new OB8Knob (apvts, ParamID::reverbWidth,      "WIDTH"));
     rvbMix  .reset (new OB8Knob (apvts, ParamID::reverbMix,        "MIX"));
 
+    // Granular delay
+    grSize    .reset (new OB8Knob (apvts, ParamID::granularSize,     "SIZE"));
+    grDensity .reset (new OB8Knob (apvts, ParamID::granularDensity,  "DENS"));
+    grScatter .reset (new OB8Knob (apvts, ParamID::granularScatter,  "SCAT"));
+    grPitch   .reset (new OB8Knob (apvts, ParamID::granularPitch,    "PITCH"));
+    grSpread  .reset (new OB8Knob (apvts, ParamID::granularSpread,   "SPREAD"));
+    grFeedback.reset (new OB8Knob (apvts, ParamID::granularFeedback, "FBK"));
+    grMix     .reset (new OB8Knob (apvts, ParamID::granularMix,      "MIX"));
+
     // Page 2
     envToVco1 .reset (new OB8Knob   (apvts, ParamID::envToVco1,   "FE -> V1"));
     envToVco2 .reset (new OB8Knob   (apvts, ParamID::envToVco2,   "FE -> V2"));
@@ -232,6 +241,12 @@ OB8Editor::OB8Editor (OB8Processor& p)
     sections.push_back ({ "REVERB", {},
                           { rvbSize.get(), rvbDecay.get(), rvbDamp.get(),
                             rvbPre.get(), rvbMod.get(), rvbWidth.get(), rvbMix.get() } });
+
+    // Section 15: GRANULAR
+    sections.push_back ({ "GRANULAR", {},
+                          { grSize.get(), grDensity.get(), grScatter.get(),
+                            grPitch.get(), grSpread.get(), grFeedback.get(),
+                            grMix.get() } });
 
     for (auto& s : sections)
         for (auto* c : s.children)
@@ -756,12 +771,17 @@ void OB8Editor::resized()
 
     bounds.removeFromTop (kInterRowGap);
 
-    // Row 4: DELAY | REVERB (post-effects)
+    // Row 4: DELAY | REVERB | GRANULAR  (post-effects, three sections side-by-side)
     auto row4 = bounds;
-    const int wDelay = (row4.getWidth() - 8) * 6 / 13;  // 6 controls vs 7
-    layoutSection (sections[13], row4.removeFromLeft (wDelay), 6);
+    const int totalCols = 6 + 7 + 7;          // controls per section
+    const int row4w     = row4.getWidth() - 2 * 8;
+    const int wDelay    = row4w * 6 / totalCols;
+    const int wReverb   = row4w * 7 / totalCols;
+    layoutSection (sections[13], row4.removeFromLeft (wDelay),  6);
     row4.removeFromLeft (8);
-    layoutSection (sections[14], row4, 7);
+    layoutSection (sections[14], row4.removeFromLeft (wReverb), 7);
+    row4.removeFromLeft (8);
+    layoutSection (sections[15], row4,                          7);
 }
 
 } // namespace ob8

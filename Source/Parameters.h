@@ -115,6 +115,15 @@ namespace ParamID
     static constexpr auto macroMotion  = "macro_motion";  // 0..1
     static constexpr auto macroSpace   = "macro_space";   // 0..1
     static constexpr auto viewMode     = "view_mode";     // 0=Full, 1=Simple
+
+    // Granular delay (post-FX, parallel wet on top of dry)
+    static constexpr auto granularSize     = "granular_size";     // ms
+    static constexpr auto granularDensity  = "granular_density";  // Hz
+    static constexpr auto granularScatter  = "granular_scatter";  // 0..1
+    static constexpr auto granularPitch    = "granular_pitch";    // semitones
+    static constexpr auto granularSpread   = "granular_spread";   // 0..1
+    static constexpr auto granularFeedback = "granular_feedback"; // 0..0.9
+    static constexpr auto granularMix      = "granular_mix";      // 0..1
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

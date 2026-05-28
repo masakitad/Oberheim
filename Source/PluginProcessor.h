@@ -11,6 +11,7 @@
 #include "DSP/Oversampler.h"
 #include "DSP/Delay.h"
 #include "DSP/Reverb.h"
+#include "DSP/Granular.h"
 
 namespace ob8 {
 
@@ -97,8 +98,9 @@ private:
     int oversampleFactor = 2; // 4x
 
     // Post effects (run at host sample rate, after downsampling)
-    dsp::StereoDelay delay;
-    dsp::FDNReverb   reverb;
+    dsp::StereoDelay   delay;
+    dsp::FDNReverb     reverb;
+    dsp::GranularDelay granular;
 
     // Simple-view macro-to-parameter bridge. Constructed after apvts.
     MacroBridge macros { apvts };
