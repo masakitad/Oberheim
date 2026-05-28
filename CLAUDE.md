@@ -154,19 +154,15 @@ if (! ampEnv.isActive()) { active = false; currentMidiNote = -1; }
 
 ## GUI デザイン
 
-「HAIRLINE-VIII / fader cut」テクニカル製図風スタイル:
+`design_handoff_hairline_viii/README.md` の正規ハンドオフに準拠した HAIRLINE-VIII。トークンとレイアウトは仕様書を読むこと。
 
-- **フォント**: IBM Plex Mono (OFL, Regular / Bold / Italic) を **CMake configure 時にダウンロード→ juce_add_binary_data でバイナリ埋め込み**。`OB8LookAndFeel::monoRegular/Bold/Italic(height)` で取得。`getTypefaceForFont` を override してあるので、デフォルトの sans 描画も自動でこの mono に切り替わる。
-- **背景**: クリーム (paper) `#ECE2C8` + 横方向 5 本の細い grain ライン (alpha 0.03)
-- **テキスト / 罫線**: 濃いダークグレー `#161412` (0.7-0.8 px hairline)
-- **アクセント**: バーミリオン赤 `#C2392B` (フェーダーつまみ、番号、アクティブ要素)
-- **ミュート**: グレー `#8C8476` (ティック / 補助情報)
-- **フェーダー**: 矩形チャンネル + 中央 vertical track + **左右両側の 11 本ティック (両端と中央のみ強調)** + チャンネル幅いっぱいの赤い水平 thumb
-- **セクションタイトル**: `01 VCO 1` (番号は赤 mono bold、ラベルは黒 mono bold)
-- **ヘッダ**: `HAIRLINE-VIII` (mono bold 26px + extra kerning) + `NO. 0427 - REV. C - FADER CUT` (赤) + `eight-voice polyphonic - slider edition` (mute italic)、上下に細罫線
-- **DRAFT 透かし**: 中央に -0.42 rad 回転した italic 200px、alpha 0.10
-- **フッタ**: 6 カラムの製図シート風タイトルブロック (TITLE / SERIES / SCALE / SHEET / REV / DATE)、各カラムの上に小さい mute caption + 下に bold 値
-- **上部タブ / 下部プリセット strip は無し** (UX ノイズなのでカット)
+- **フォント**: IBM Plex Mono (UI) + Fraunces SemiBold (ディスプレイのワードマーク)。両者とも CMake configure 時に Fontsource (jsDelivr 経由) からダウンロードして `juce_add_binary_data` でバイナリに埋め込む。`OB8LookAndFeel::monoRegular/Bold/Italic/serifSemiBold(h)` で取得
+- **配色トークン**: `paperBg = #efe6cc`, `ink = #1a2538`, `accent = #a23a1a`, hairline / hairFine / inkDim / inkFaint は ink からのアルファ違い
+- **ノブ**: §6.1 RefinedKnob 準拠。外側スイープアーク + 両端ティック + 上中央ティック + 本体円 r30 + 赤いインジケータ + 赤い中央ドット
+- **フェーダー**: §6.2 RefinedFader 準拠。左右ティック段 × 5 + 中央 4px スロット + 半幅ハーフライン + 赤い 20×4 thumb
+- **セクション枠**: 箱なし、上下バンドだけ 1px hairline + セル間に hairFine の縦線。`01 VCO 1` のように番号 + ラベルだけを薄く描く
+- **ヘッダ**: Fraunces 30/600 で `HAIRLINE-VIII`、`NO. 0427 · REV. C · FADER CUT` (accent)、`eight-voice polyphonic · drafted at 1:1` (mute italic)
+- **タイトルブロック**: 6 カラム製図シート (TITLE / SERIES / SCALE / SHEET / REV / DATE)、TITLE と SERIES は他の 2 倍幅
 
 ## ビューモード (FULL / SIMPLE)
 
