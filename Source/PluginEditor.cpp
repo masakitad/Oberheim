@@ -242,8 +242,8 @@ OB8Editor::OB8Editor (OB8Processor& p)
     // header / tab anchor row / engineering title-block footer in addition
     // to the four control rows + keyboard.
     setResizable (true, true);
-    setResizeLimits (1180, 940, 1920, 1400);
-    setSize (1280, 1040);
+    setResizeLimits (1180, 820, 1920, 1300);
+    setSize (1280, 880);
 }
 
 void OB8Editor::updateOctaveLabel()
@@ -409,28 +409,29 @@ void OB8Editor::paint (juce::Graphics& g)
     }
 
     // ---- Header ---------------------------------------------------------
-    auto header = bounds.removeFromTop (60.0f);
-    // Title hairline above and below the band
+    auto header = bounds.removeFromTop (44.0f);
+    // Title hairline above and below the band -- thinner edges for the
+    // compact build.
     g.setColour (LF::panelDark());
-    g.drawLine (12.0f, header.getY()     + 8.0f,
-                fullBounds.getWidth() - 12.0f, header.getY()     + 8.0f, 0.8f);
-    g.drawLine (12.0f, header.getBottom() - 4.0f,
-                fullBounds.getWidth() - 12.0f, header.getBottom() - 4.0f, 0.8f);
+    g.drawLine (12.0f, header.getY()     + 4.0f,
+                fullBounds.getWidth() - 12.0f, header.getY()     + 4.0f, 0.8f);
+    g.drawLine (12.0f, header.getBottom() - 2.0f,
+                fullBounds.getWidth() - 12.0f, header.getBottom() - 2.0f, 0.8f);
 
-    auto inner = header.reduced (20.0f, 12.0f);
+    auto inner = header.reduced (18.0f, 6.0f);
     g.setColour (LF::panelDark());
-    g.setFont (LF::monoBold (26.0f).withExtraKerningFactor (0.04f));
+    g.setFont (LF::monoBold (20.0f).withExtraKerningFactor (0.04f));
     g.drawText ("HAIRLINE-VIII", inner, juce::Justification::centredLeft);
 
     auto subLeft = inner;
-    subLeft.removeFromLeft (220.0f);
+    subLeft.removeFromLeft (180.0f);
     g.setColour (LF::panelAccent());
-    g.setFont (LF::monoBold (11.0f).withExtraKerningFactor (0.05f));
+    g.setFont (LF::monoBold (10.0f).withExtraKerningFactor (0.05f));
     g.drawText ("NO. 0427  -  REV. C  -  FADER CUT", subLeft,
                 juce::Justification::centredLeft);
 
     g.setColour (LF::panelMute());
-    g.setFont (LF::monoItalic (11.0f));
+    g.setFont (LF::monoItalic (10.0f));
     g.drawText ("eight-voice polyphonic  -  slider edition",
                 inner, juce::Justification::centredRight);
 
@@ -463,7 +464,7 @@ void OB8Editor::paint (juce::Graphics& g)
 
     // ---- Footer (engineering title block) ------------------------------
     auto footer = fullBounds; // local copy of full editor bounds
-    footer = footer.removeFromBottom (38.0f).reduced (12.0f, 6.0f);
+    footer = footer.removeFromBottom (24.0f).reduced (12.0f, 3.0f);
     g.setColour (LF::panelDark());
     g.drawRect (footer, 0.8f);
 
@@ -486,13 +487,13 @@ void OB8Editor::paint (juce::Graphics& g)
             g.drawLine (cell.getX(), cell.getY(),
                         cell.getX(), cell.getBottom(), 0.6f);
         }
-        auto cinner = cell.reduced (6.0f, 3.0f);
+        auto cinner = cell.reduced (6.0f, 1.0f);
         g.setColour (LF::panelMute());
-        g.setFont (LF::monoRegular (8.0f).withExtraKerningFactor (0.10f));
-        g.drawText (fields[i][0], cinner.removeFromTop (10.0f),
+        g.setFont (LF::monoRegular (7.5f).withExtraKerningFactor (0.10f));
+        g.drawText (fields[i][0], cinner.removeFromTop (8.0f),
                     juce::Justification::centredLeft);
         g.setColour (LF::panelDark());
-        g.setFont (LF::monoBold (10.5f));
+        g.setFont (LF::monoBold (9.0f));
         g.drawText (fields[i][1], cinner, juce::Justification::centredLeft);
     }
 }
@@ -521,33 +522,35 @@ void OB8Editor::layoutSection (Section& s, juce::Rectangle<int> bounds, int cols
 void OB8Editor::resized()
 {
     auto bounds = getLocalBounds();
-    // Header (60 px) drawn in paint() -- no anchor tab row in this build
-    bounds.removeFromTop (60);
-    // Engineering title-block footer (38 px) drawn in paint()
-    bounds.removeFromBottom (38);
-    bounds = bounds.reduced (10);
+    // Header (44 px) drawn in paint() -- no anchor tab row in this build
+    bounds.removeFromTop (44);
+    // Engineering title-block footer (24 px) drawn in paint()
+    bounds.removeFromBottom (24);
+    bounds = bounds.reduced (8);
 
-    // Reserve space at the bottom for the on-screen keyboard. Done first so
-    // the existing top-down section layout keeps working against `bounds`.
-    const int kKbdH = juce::jmin (100, juce::jmax (70, bounds.getHeight() / 9));
+    // Reserve space at the bottom for the on-screen keyboard. Compact build:
+    // cap at 76 px so the synth panel itself keeps a usable height even on a
+    // 13" Mac display.
+    const int kKbdH = juce::jmin (76, juce::jmax (60, bounds.getHeight() / 11));
     auto kbdBounds = bounds.removeFromBottom (kKbdH);
 
     // Octave shift controls share the keyboard row on the left side
-    auto octBounds = kbdBounds.removeFromLeft (90);
-    octBounds.reduce (4, 4);
-    auto labelStrip = octBounds.removeFromTop (24);
+    auto octBounds = kbdBounds.removeFromLeft (76);
+    octBounds.reduce (3, 3);
+    auto labelStrip = octBounds.removeFromTop (18);
     octaveLabel.setBounds (labelStrip);
-    auto btnStrip   = octBounds.removeFromTop (32);
+    auto btnStrip   = octBounds.removeFromTop (26);
     octDownBtn.setBounds (btnStrip.removeFromLeft (btnStrip.getWidth() / 2).reduced (2));
     octUpBtn  .setBounds (btnStrip.reduced (2));
 
-    bounds.removeFromBottom (8);
+    bounds.removeFromBottom (6);
     keyboard.setBounds (kbdBounds);
 
     // Allocate the four rows proportionally so the window resizes cleanly.
     // Weights (30/24/26/20) keep the knob clusters legible while leaving
     // a reasonable strip for the new FX row at the bottom of the panel.
-    const int availH = bounds.getHeight() - 3 * 8;   // minus three inter-row gaps
+    const int kInterRowGap = 6;
+    const int availH = bounds.getHeight() - 3 * kInterRowGap;
     const int rowH1  = (availH * 30) / 100;
     const int rowH2  = (availH * 24) / 100;
     const int rowH3  = (availH * 26) / 100;
@@ -573,7 +576,7 @@ void OB8Editor::resized()
     row1.removeFromLeft (8);
     layoutSection (sections[5], row1,                          4);
 
-    bounds.removeFromTop (8);
+    bounds.removeFromTop (kInterRowGap);
 
     // Row 2: AMP ENV | LFO | VELOCITY | VOICE
     auto row2 = bounds.removeFromTop (rowH2);
@@ -589,7 +592,7 @@ void OB8Editor::resized()
     row2.removeFromLeft (8);
     layoutSection (sections[9], row2,                        4);
 
-    bounds.removeFromTop (8);
+    bounds.removeFromTop (kInterRowGap);
 
     // Row 3: PAGE 2 | SPLIT/DOUBLE | PATCH BANK (hand-laid out)
     auto row3 = bounds.removeFromTop (rowH3);
@@ -628,7 +631,7 @@ void OB8Editor::resized()
     saveBankBtn.setBounds (btnRow2.removeFromLeft (btnRow2.getWidth() / 2).reduced (2));
     loadBankBtn.setBounds (btnRow2.reduced (2));
 
-    bounds.removeFromTop (8);
+    bounds.removeFromTop (kInterRowGap);
 
     // Row 4: DELAY | REVERB (post-effects)
     auto row4 = bounds;
