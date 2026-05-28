@@ -462,9 +462,9 @@ void OB8Editor::paint (juce::Graphics& g)
     }
 
     // ---- DRAFT watermark -----------------------------------------------
-    // Big diagonal grey italic across the centre of the panel. Drawn
-    // behind everything? No -- behind nothing; we draw it AFTER the
-    // section fills but it has very low alpha so the controls show through.
+    // Diagonal grey italic across the centre. Kept small enough that
+    // macOS's text engine renders it reliably (very large italic fonts
+    // have caused crashes in some JUCE 8 / Sequoia combos).
     {
         juce::Graphics::ScopedSaveState ss (g);
         auto fb = getLocalBounds().toFloat();
@@ -472,9 +472,9 @@ void OB8Editor::paint (juce::Graphics& g)
         const float cy = fb.getCentreY();
         g.addTransform (juce::AffineTransform::rotation (-0.42f, cx, cy));
         g.setColour (LF::panelMute().withAlpha (0.10f));
-        g.setFont (LF::monoItalic (200.0f).withExtraKerningFactor (0.20f));
-        g.drawText ("DRAFT", static_cast<int> (cx - 400),
-                              static_cast<int> (cy - 100), 800, 200,
+        g.setFont (LF::monoItalic (140.0f).withExtraKerningFactor (0.18f));
+        g.drawText ("DRAFT", static_cast<int> (cx - 320),
+                              static_cast<int> (cy - 70), 640, 140,
                     juce::Justification::centred);
     }
 
