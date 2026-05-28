@@ -1,15 +1,48 @@
 #include "OB8LookAndFeel.h"
+#include "BinaryData.h"
 
 namespace ob8 {
 
+namespace {
+juce::Typeface::Ptr loadBundled (const void* data, int size)
+{
+    return juce::Typeface::createSystemTypefaceFor (data, static_cast<size_t> (size));
+}
+} // namespace
+
+juce::Typeface::Ptr OB8LookAndFeel::getMonoRegular()
+{
+    static juce::Typeface::Ptr tf = loadBundled (
+        BinaryData::IBMPlexMonoRegular_ttf, BinaryData::IBMPlexMonoRegular_ttfSize);
+    return tf;
+}
+
+juce::Typeface::Ptr OB8LookAndFeel::getMonoBold()
+{
+    static juce::Typeface::Ptr tf = loadBundled (
+        BinaryData::IBMPlexMonoBold_ttf, BinaryData::IBMPlexMonoBold_ttfSize);
+    return tf;
+}
+
+juce::Typeface::Ptr OB8LookAndFeel::getMonoItalic()
+{
+    static juce::Typeface::Ptr tf = loadBundled (
+        BinaryData::IBMPlexMonoItalic_ttf, BinaryData::IBMPlexMonoItalic_ttfSize);
+    return tf;
+}
+
+juce::Font OB8LookAndFeel::monoRegular (float h) { return juce::Font (getMonoRegular()).withHeight (h); }
+juce::Font OB8LookAndFeel::monoBold    (float h) { return juce::Font (getMonoBold())   .withHeight (h); }
+juce::Font OB8LookAndFeel::monoItalic  (float h) { return juce::Font (getMonoItalic()) .withHeight (h); }
+
 OB8LookAndFeel::OB8LookAndFeel()
 {
-    setColour (juce::ResizableWindow::backgroundColourId, panelBlue());
+    setColour (juce::ResizableWindow::backgroundColourId, panelCream());
     setColour (juce::Slider::textBoxOutlineColourId,      juce::Colours::transparentBlack);
     setColour (juce::Slider::textBoxBackgroundColourId,   juce::Colours::transparentBlack);
     setColour (juce::Slider::textBoxTextColourId,         panelDark());
     setColour (juce::Slider::trackColourId,               panelDark());
-    setColour (juce::Slider::backgroundColourId,          panelDark().withAlpha (0.20f));
+    setColour (juce::Slider::backgroundColourId,          panelDark().withAlpha (0.18f));
     setColour (juce::Slider::thumbColourId,               panelAccent());
     setColour (juce::Label::textColourId,                 panelDark());
     setColour (juce::ComboBox::backgroundColourId,        panelCream());
@@ -18,7 +51,7 @@ OB8LookAndFeel::OB8LookAndFeel()
     setColour (juce::ComboBox::outlineColourId,           panelDark());
     setColour (juce::PopupMenu::backgroundColourId,       panelCream());
     setColour (juce::PopupMenu::textColourId,             panelDark());
-    setColour (juce::PopupMenu::highlightedBackgroundColourId, panelAccent().withAlpha (0.20f));
+    setColour (juce::PopupMenu::highlightedBackgroundColourId, panelAccent().withAlpha (0.25f));
     setColour (juce::PopupMenu::highlightedTextColourId,  panelDark());
     setColour (juce::ToggleButton::textColourId,          panelDark());
     setColour (juce::ToggleButton::tickColourId,          panelAccent());
@@ -28,11 +61,18 @@ OB8LookAndFeel::OB8LookAndFeel()
     setColour (juce::TextEditor::backgroundColourId,      panelCream());
     setColour (juce::TextEditor::textColourId,            panelDark());
     setColour (juce::TextEditor::outlineColourId,         panelDark());
+
+    setDefaultSansSerifTypeface (getMonoRegular());
 }
 
-/*  Rotary slider is no longer used (we draw vertical faders instead) but we
-    keep this implementation so any leftover rotary callers fall back to the
-    same hairline aesthetic. */
+juce::Typeface::Ptr OB8LookAndFeel::getTypefaceForFont (const juce::Font& f)
+{
+    if (f.getStyleFlags() & juce::Font::italic) return getMonoItalic();
+    if (f.getStyleFlags() & juce::Font::bold  ) return getMonoBold();
+    return getMonoRegular();
+}
+
+/*  Rotary slider -- kept as a fallback for any legacy rotary caller. */
 void OB8LookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, int h,
                                        float pos, float startAng, float endAng,
                                        juce::Slider&)
@@ -53,11 +93,13 @@ void OB8LookAndFeel::drawRotarySlider (juce::Graphics& g, int x, int y, int w, i
     g.fillPath (p, juce::AffineTransform::rotation (angle).translated (cx, cy));
 }
 
-/*  Vertical linear slider drawing. Matches the "HAIRLINE" design language:
-      - thin black track in the centre with 5 horizontal tick marks
-      - red rectangular thumb
-      - cream background
-      - subtle hairline frame around the track area */
+/*  HAIRLINE vertical fader:
+      * rectangular outer "channel" (hairline outline)
+      * thin centre track
+      * tick marks (rows) on both sides of the track running the channel
+        width, evenly distributed, with the half-way row drawn fully
+        across as an emphasised "centre" rule
+      * red horizontal thumb that spans the channel width */
 void OB8LookAndFeel::drawLinearSlider (juce::Graphics& g,
                                        int x, int y, int w, int h,
                                        float sliderPos,
@@ -68,39 +110,57 @@ void OB8LookAndFeel::drawLinearSlider (juce::Graphics& g,
     if (style != juce::Slider::LinearVertical
         && style != juce::Slider::LinearBarVertical)
     {
-        // Fallback to default for non-vertical orientations
         LookAndFeel_V4::drawLinearSlider (g, x, y, w, h, sliderPos,
                                           minPos, maxPos, style, slider);
         return;
     }
 
-    const float cx = x + w * 0.5f;
-    const float top    = y + 4.0f;
-    const float bottom = y + h - 4.0f;
+    // Compute the channel bounds: a centred narrow column inside the slider
+    const float channelW = juce::jmin (24.0f, static_cast<float> (w) * 0.5f);
+    const float cx       = x + w * 0.5f;
+    const float top      = y + 2.0f;
+    const float bottom   = y + h - 2.0f;
+    juce::Rectangle<float> channel (cx - channelW * 0.5f, top, channelW, bottom - top);
 
-    // Track (hairline)
+    // Outer channel outline
     g.setColour (panelDark());
-    g.drawLine (cx, top, cx, bottom, 1.0f);
+    g.drawRect (channel, 0.7f);
 
-    // 5 tick marks evenly distributed -- top/middle/bottom emphasised
-    const float tickWide = 8.0f;
-    const float tickThin = 4.0f;
-    for (int i = 0; i < 5; ++i)
+    // Centre track (thin vertical line through the channel)
+    g.drawLine (cx, top + 1.0f, cx, bottom - 1.0f, 0.7f);
+
+    // Tick marks. 11 evenly distributed rows; the middle one (row 5) and
+    // the ends (0, 10) get a slightly wider stroke to mark thirds.
+    constexpr int kNumTicks = 11;
+    const float tickInset   = 2.0f;
+    g.setColour (panelDark().withAlpha (0.55f));
+    for (int i = 0; i < kNumTicks; ++i)
     {
-        const float ty = top + (bottom - top) * static_cast<float> (i) / 4.0f;
-        const float halfW = (i == 0 || i == 2 || i == 4) ? tickWide : tickThin;
-        g.setColour (panelDark().withAlpha (0.55f));
-        g.drawLine (cx - halfW, ty, cx + halfW, ty, 1.0f);
+        const float ty   = top + (bottom - top) * static_cast<float> (i)
+                                                / (kNumTicks - 1);
+        const bool  emph = (i == 0 || i == 5 || i == 10);
+        const float extra = emph ? 2.0f : 0.0f;
+        const float x0 = channel.getX() - extra;
+        const float x1 = channel.getX() + tickInset;
+        const float x2 = channel.getRight() - tickInset;
+        const float x3 = channel.getRight() + extra;
+        g.drawLine (x0, ty, x1, ty, emph ? 0.7f : 0.5f);
+        g.drawLine (x2, ty, x3, ty, emph ? 0.7f : 0.5f);
     }
 
-    // Thumb: red rectangle marker.
-    const float thumbH = 6.0f;
-    const float thumbW = 22.0f;
-    const float ty     = juce::jlimit (top, bottom, sliderPos);
+    // Red horizontal thumb across the channel width
+    const float thumbH = 5.0f;
+    const float thumbY = juce::jlimit (top + thumbH * 0.5f,
+                                       bottom - thumbH * 0.5f,
+                                       sliderPos);
+    juce::Rectangle<float> thumb (channel.getX() - 1.0f,
+                                  thumbY - thumbH * 0.5f,
+                                  channel.getWidth() + 2.0f,
+                                  thumbH);
     g.setColour (panelAccent());
-    g.fillRect (cx - thumbW * 0.5f, ty - thumbH * 0.5f, thumbW, thumbH);
+    g.fillRect (thumb);
     g.setColour (panelDark());
-    g.drawRect (cx - thumbW * 0.5f, ty - thumbH * 0.5f, thumbW, thumbH, 0.6f);
+    g.drawRect (thumb, 0.6f);
 
     juce::ignoreUnused (slider, minPos, maxPos);
 }
@@ -109,40 +169,47 @@ void OB8LookAndFeel::drawToggleButton (juce::Graphics& g, juce::ToggleButton& b,
                                        bool /*highlighted*/, bool /*down*/)
 {
     auto bounds = b.getLocalBounds().toFloat();
-    const float size = juce::jmin (bounds.getHeight(), 18.0f);
-    auto sq = juce::Rectangle<float> (bounds.getX(), bounds.getCentreY() - size * 0.5f,
+    const float size = juce::jmin (bounds.getHeight(), 16.0f);
+    auto sq = juce::Rectangle<float> (bounds.getX(),
+                                      bounds.getCentreY() - size * 0.5f,
                                       size, size).reduced (1.0f);
 
     g.setColour (panelCream());
     g.fillRect (sq);
     g.setColour (panelDark());
-    g.drawRect (sq, 1.0f);
+    g.drawRect (sq, 0.8f);
 
     if (b.getToggleState())
     {
         g.setColour (panelAccent());
-        g.fillRect (sq.reduced (3.0f));
+        g.fillRect (sq.reduced (2.5f));
     }
 
-    bounds.removeFromLeft (size + 6.0f);
+    bounds.removeFromLeft (size + 5.0f);
     g.setColour (panelDark());
-    g.setFont (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
+    g.setFont (monoRegular (10.5f));
     g.drawText (b.getButtonText(), bounds.toNearestInt(),
                 juce::Justification::centredLeft, false);
 }
 
-void OB8LookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, bool /*isDown*/,
-                                   int /*buttonX*/, int /*buttonY*/, int /*buttonW*/, int /*buttonH*/,
+void OB8LookAndFeel::drawComboBox (juce::Graphics& g, int width, int height,
+                                   bool /*isDown*/,
+                                   int /*buttonX*/, int /*buttonY*/,
+                                   int /*buttonW*/, int /*buttonH*/,
                                    juce::ComboBox& cb)
 {
-    auto bounds = juce::Rectangle<float> (0, 0, (float) width, (float) height).reduced (0.5f);
+    auto bounds = juce::Rectangle<float> (0, 0,
+                                          static_cast<float> (width),
+                                          static_cast<float> (height))
+                      .reduced (0.5f);
     g.setColour (panelCream());
     g.fillRect (bounds);
     g.setColour (panelDark());
-    g.drawRect (bounds, 1.0f);
+    g.drawRect (bounds, 0.7f);
 
     juce::Path arrow;
-    const float ax = width - 9.0f, ay = height * 0.5f;
+    const float ax = width - 9.0f;
+    const float ay = height * 0.5f;
     arrow.addTriangle (ax - 3, ay - 2, ax + 3, ay - 2, ax, ay + 2);
     g.setColour (panelAccent());
     g.fillPath (arrow);
@@ -150,30 +217,28 @@ void OB8LookAndFeel::drawComboBox (juce::Graphics& g, int width, int height, boo
     juce::ignoreUnused (cb);
 }
 
+void OB8LookAndFeel::positionComboBoxText (juce::ComboBox& cb, juce::Label& l)
+{
+    l.setBounds (4, 0, cb.getWidth() - 16, cb.getHeight());
+    l.setFont   (monoRegular (10.5f));
+    l.setColour (juce::Label::textColourId, panelDark());
+}
+
 void OB8LookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b,
                                            const juce::Colour&,
                                            bool /*highlighted*/, bool down)
 {
     auto bounds = b.getLocalBounds().toFloat().reduced (0.5f);
-    g.setColour (down ? panelAccent().withAlpha (0.25f) : panelCream());
+    g.setColour (down ? panelAccent().withAlpha (0.20f) : panelCream());
     g.fillRect (bounds);
     g.setColour (panelDark());
-    g.drawRect (bounds, 1.0f);
+    g.drawRect (bounds, 0.7f);
 }
 
-juce::Font OB8LookAndFeel::getLabelFont (juce::Label& l)
-{
-    return juce::Font (juce::FontOptions (l.getFont().getHeight()).withStyle ("Plain"));
-}
-
-juce::Font OB8LookAndFeel::getComboBoxFont (juce::ComboBox&)
-{
-    return juce::Font (juce::FontOptions (12.0f).withStyle ("Plain"));
-}
-
-juce::Font OB8LookAndFeel::getTextButtonFont (juce::TextButton&, int)
-{
-    return juce::Font (juce::FontOptions (11.0f).withStyle ("Plain"));
-}
+juce::Font OB8LookAndFeel::getLabelFont      (juce::Label& l)       { return monoRegular (l.getFont().getHeight()); }
+juce::Font OB8LookAndFeel::getComboBoxFont   (juce::ComboBox&)      { return monoRegular (10.5f); }
+juce::Font OB8LookAndFeel::getTextButtonFont (juce::TextButton&, int){ return monoRegular (10.5f); }
+juce::Font OB8LookAndFeel::getPopupMenuFont()                       { return monoRegular (11.0f); }
+juce::Font OB8LookAndFeel::getTextEditorFont (juce::TextEditor&)    { return monoRegular (10.5f); }
 
 } // namespace ob8

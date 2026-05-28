@@ -140,9 +140,9 @@ OB8Editor::OB8Editor (OB8Processor& p)
     bankLabel.setColour    (juce::Label::textColourId, OB8LookAndFeel::panelAccent());
     programLabel.setColour (juce::Label::textColourId, OB8LookAndFeel::panelAccent());
     patchNameLabel.setColour (juce::Label::textColourId, OB8LookAndFeel::panelAccent());
-    bankLabel.setFont    (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
-    programLabel.setFont (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
-    patchNameLabel.setFont (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
+    bankLabel.setFont      (OB8LookAndFeel::monoBold (10.5f));
+    programLabel.setFont   (OB8LookAndFeel::monoBold (10.5f));
+    patchNameLabel.setFont (OB8LookAndFeel::monoBold (10.5f));
 
     addAndMakeVisible (bankCombo);
     addAndMakeVisible (programCombo);
@@ -217,7 +217,7 @@ OB8Editor::OB8Editor (OB8Processor& p)
     addAndMakeVisible (octUpBtn);
     addAndMakeVisible (octaveLabel);
     octaveLabel.setJustificationType (juce::Justification::centred);
-    octaveLabel.setFont (juce::Font (juce::FontOptions (14.0f).withStyle ("Bold")));
+    octaveLabel.setFont (OB8LookAndFeel::monoBold (13.0f));
     octaveLabel.setColour (juce::Label::textColourId, OB8LookAndFeel::panelAccent());
 
     octDownBtn.onClick = [this]
@@ -242,8 +242,8 @@ OB8Editor::OB8Editor (OB8Processor& p)
     // header / tab anchor row / engineering title-block footer in addition
     // to the four control rows + keyboard.
     setResizable (true, true);
-    setResizeLimits (1180, 960, 1920, 1400);
-    setSize (1280, 1060);
+    setResizeLimits (1180, 940, 1920, 1400);
+    setSize (1280, 1040);
 }
 
 void OB8Editor::updateOctaveLabel()
@@ -392,50 +392,49 @@ void OB8Editor::chooseLoadBank()
 void OB8Editor::paint (juce::Graphics& g)
 {
     using LF = OB8LookAndFeel;
-    auto bounds = getLocalBounds().toFloat();
+    const auto fullBounds = getLocalBounds().toFloat();
+    auto bounds = fullBounds;
 
     // ---- Paper background -----------------------------------------------
     g.fillAll (LF::panelCream());
 
-    // ---- Header ----------------------------------------------------------
-    auto header = bounds.removeFromTop (52.0f);
-    g.setColour (LF::panelDark());
-    g.setFont (juce::Font (juce::FontOptions (24.0f).withStyle ("Bold")));
-    g.drawText ("OB-8  NATIVE", header.reduced (18.0f, 0.0f),
-                juce::Justification::centredLeft);
+    // Subtle horizontal hairline grain to suggest cold-press paper.
+    // Cheap: a few off-white lines spaced irregularly. Imperceptible at
+    // a glance but breaks the dead-flat fill.
+    g.setColour (LF::panelDark().withAlpha (0.03f));
+    for (int i = 0; i < 5; ++i)
+    {
+        const float y = (fullBounds.getHeight() / 6.0f) * (i + 1);
+        g.drawLine (0.0f, y, fullBounds.getWidth(), y, 0.5f);
+    }
 
+    // ---- Header ---------------------------------------------------------
+    auto header = bounds.removeFromTop (60.0f);
+    // Title hairline above and below the band
+    g.setColour (LF::panelDark());
+    g.drawLine (12.0f, header.getY()     + 8.0f,
+                fullBounds.getWidth() - 12.0f, header.getY()     + 8.0f, 0.8f);
+    g.drawLine (12.0f, header.getBottom() - 4.0f,
+                fullBounds.getWidth() - 12.0f, header.getBottom() - 4.0f, 0.8f);
+
+    auto inner = header.reduced (20.0f, 12.0f);
+    g.setColour (LF::panelDark());
+    g.setFont (LF::monoBold (26.0f).withExtraKerningFactor (0.04f));
+    g.drawText ("HAIRLINE-VIII", inner, juce::Justification::centredLeft);
+
+    auto subLeft = inner;
+    subLeft.removeFromLeft (220.0f);
     g.setColour (LF::panelAccent());
-    g.setFont (juce::Font (juce::FontOptions (12.0f).withStyle ("Bold")));
-    auto subRect = header.reduced (18.0f, 0.0f);
-    subRect.removeFromLeft (220.0f);
-    g.drawText ("NO. 0427  REV. C  FADER CUT", subRect,
+    g.setFont (LF::monoBold (11.0f).withExtraKerningFactor (0.05f));
+    g.drawText ("NO. 0427  -  REV. C  -  FADER CUT", subLeft,
                 juce::Justification::centredLeft);
 
     g.setColour (LF::panelMute());
-    g.setFont (juce::Font (juce::FontOptions (12.0f).withStyle ("Italic")));
+    g.setFont (LF::monoItalic (11.0f));
     g.drawText ("eight-voice polyphonic  -  slider edition",
-                header.reduced (18.0f, 0.0f), juce::Justification::centredRight);
+                inner, juce::Justification::centredRight);
 
-    // Header hairline
-    g.setColour (LF::panelDark());
-    g.drawLine (12.0f, header.getBottom() + 1.0f,
-                bounds.getWidth() - 12.0f, header.getBottom() + 1.0f, 1.0f);
-
-    // ---- Top tab bar (anchor labels, decorative for now) ----------------
-    auto tabRow = bounds.removeFromTop (28.0f).reduced (12.0f, 4.0f);
-    const juce::StringArray tabs { "PROGRAM", "OSC", "FILTER", "ENV", "MOD", "FX", "PATCH" };
-    const float tabW = tabRow.getWidth() / 14.0f;
-    g.setFont (juce::Font (juce::FontOptions (11.0f).withStyle ("Bold")));
-    auto tabCursor = tabRow.removeFromLeft (tabW * 7.0f);
-    for (int i = 0; i < tabs.size(); ++i)
-    {
-        auto cell = tabCursor.removeFromLeft (tabW);
-        const bool selected = (i == 1); // OSC highlighted as the "current" anchor
-        g.setColour (selected ? LF::panelAccent() : LF::panelDark());
-        g.drawText (tabs[i], cell, juce::Justification::centredLeft);
-    }
-
-    // Section frames
+    // ---- Section frames + numbered titles ------------------------------
     for (auto& s : sections)
     {
         auto r = s.bounds.toFloat();
@@ -444,56 +443,74 @@ void OB8Editor::paint (juce::Graphics& g)
         g.setColour (LF::panelCream());
         g.fillRect (r);
         g.setColour (LF::panelDark());
-        g.drawRect (r, 1.0f);
+        g.drawRect (r, 0.8f);
 
-        // Numbered title bar at the top of each section
-        auto titleStrip = r.removeFromTop (18.0f).reduced (6.0f, 0.0f);
-        // Index number in accent red, label in dark
+        // Numbered title strip
+        auto titleStrip = r.removeFromTop (20.0f).reduced (6.0f, 0.0f);
         const int idx = static_cast<int> (&s - &sections[0]) + 1;
         const auto indexStr = (idx < 10 ? juce::String ("0") + juce::String (idx)
                                         : juce::String (idx));
 
         g.setColour (LF::panelAccent());
-        g.setFont (juce::Font (juce::FontOptions (10.5f).withStyle ("Bold")));
+        g.setFont (LF::monoBold (11.0f).withExtraKerningFactor (0.05f));
         g.drawText (indexStr, titleStrip.removeFromLeft (20.0f),
                     juce::Justification::centredLeft);
 
         g.setColour (LF::panelDark());
-        g.setFont (juce::Font (juce::FontOptions (10.5f).withStyle ("Bold")));
+        g.setFont (LF::monoBold (11.0f).withExtraKerningFactor (0.05f));
         g.drawText (s.title, titleStrip, juce::Justification::centredLeft);
     }
 
-    // ---- Footer (engineering title block) -------------------------------
-    auto fullBounds = getLocalBounds().toFloat();
-    auto footer = fullBounds.removeFromBottom (32.0f).reduced (12.0f, 4.0f);
+    // ---- DRAFT watermark -----------------------------------------------
+    // Big diagonal grey italic across the centre of the panel. Drawn
+    // behind everything? No -- behind nothing; we draw it AFTER the
+    // section fills but it has very low alpha so the controls show through.
+    {
+        juce::Graphics::ScopedSaveState ss (g);
+        auto fb = getLocalBounds().toFloat();
+        const float cx = fb.getCentreX();
+        const float cy = fb.getCentreY();
+        g.addTransform (juce::AffineTransform::rotation (-0.42f, cx, cy));
+        g.setColour (LF::panelMute().withAlpha (0.10f));
+        g.setFont (LF::monoItalic (200.0f).withExtraKerningFactor (0.20f));
+        g.drawText ("DRAFT", static_cast<int> (cx - 400),
+                              static_cast<int> (cy - 100), 800, 200,
+                    juce::Justification::centred);
+    }
+
+    // ---- Footer (engineering title block) ------------------------------
+    auto footer = fullBounds; // local copy of full editor bounds
+    footer = footer.removeFromBottom (38.0f).reduced (12.0f, 6.0f);
     g.setColour (LF::panelDark());
-    g.drawRect (footer, 1.0f);
+    g.drawRect (footer, 0.8f);
 
     const char* fields[][2] = {
-        { "TITLE",  "OB-8 NATIVE" },
-        { "SERIES", "No. 0427  Rev. C  Fader Cut" },
+        { "TITLE",  "HAIRLINE-VIII" },
+        { "SERIES", "No. 0427  /  Rev. C  /  Fader Cut" },
         { "SCALE",  "1 : 1" },
+        { "SHEET",  "01 / 01" },
         { "REV",    "C" },
         { "DATE",   "2026.05" },
     };
-    const float colW = footer.getWidth() / 5.0f;
-    g.setFont (juce::Font (juce::FontOptions (8.5f).withStyle ("Bold")));
-    for (int i = 0; i < 5; ++i)
+    constexpr int kNumFields = sizeof(fields) / sizeof(fields[0]);
+    const float colW = footer.getWidth() / static_cast<float> (kNumFields);
+    for (int i = 0; i < kNumFields; ++i)
     {
         auto cell = footer.removeFromLeft (colW);
         if (i > 0)
         {
             g.setColour (LF::panelDark());
-            g.drawLine (cell.getX(), cell.getY(), cell.getX(), cell.getBottom(), 0.6f);
+            g.drawLine (cell.getX(), cell.getY(),
+                        cell.getX(), cell.getBottom(), 0.6f);
         }
-        auto inner = cell.reduced (6.0f, 4.0f);
+        auto cinner = cell.reduced (6.0f, 3.0f);
         g.setColour (LF::panelMute());
-        g.drawText (fields[i][0], inner.removeFromTop (10.0f),
+        g.setFont (LF::monoRegular (8.0f).withExtraKerningFactor (0.10f));
+        g.drawText (fields[i][0], cinner.removeFromTop (10.0f),
                     juce::Justification::centredLeft);
         g.setColour (LF::panelDark());
-        g.setFont (juce::Font (juce::FontOptions (10.5f).withStyle ("Bold")));
-        g.drawText (fields[i][1], inner, juce::Justification::centredLeft);
-        g.setFont (juce::Font (juce::FontOptions (8.5f).withStyle ("Bold")));
+        g.setFont (LF::monoBold (10.5f));
+        g.drawText (fields[i][1], cinner, juce::Justification::centredLeft);
     }
 }
 
@@ -521,10 +538,10 @@ void OB8Editor::layoutSection (Section& s, juce::Rectangle<int> bounds, int cols
 void OB8Editor::resized()
 {
     auto bounds = getLocalBounds();
-    // Header (52 px) + tab anchor row (28 px) drawn in paint()
-    bounds.removeFromTop (80);
-    // Engineering title-block footer (32 px) drawn in paint()
-    bounds.removeFromBottom (32);
+    // Header (60 px) drawn in paint() -- no anchor tab row in this build
+    bounds.removeFromTop (60);
+    // Engineering title-block footer (38 px) drawn in paint()
+    bounds.removeFromBottom (38);
     bounds = bounds.reduced (10);
 
     // Reserve space at the bottom for the on-screen keyboard. Done first so

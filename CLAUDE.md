@@ -154,21 +154,23 @@ if (! ampEnv.isActive()) { active = false; currentMidiNote = -1; }
 
 ## GUI デザイン
 
-「HAIRLINE / fader cut」テクニカル製図風スタイル:
+「HAIRLINE-VIII / fader cut」テクニカル製図風スタイル:
 
-- **背景**: クリーム (paper) `#ECE2C8`
-- **テキスト / 罫線**: 濃いダークグレー `#161412` (1 px hairline)
+- **フォント**: IBM Plex Mono (OFL, Regular / Bold / Italic) を **CMake configure 時にダウンロード→ juce_add_binary_data でバイナリ埋め込み**。`OB8LookAndFeel::monoRegular/Bold/Italic(height)` で取得。`getTypefaceForFont` を override してあるので、デフォルトの sans 描画も自動でこの mono に切り替わる。
+- **背景**: クリーム (paper) `#ECE2C8` + 横方向 5 本の細い grain ライン (alpha 0.03)
+- **テキスト / 罫線**: 濃いダークグレー `#161412` (0.7-0.8 px hairline)
 - **アクセント**: バーミリオン赤 `#C2392B` (フェーダーつまみ、番号、アクティブ要素)
 - **ミュート**: グレー `#8C8476` (ティック / 補助情報)
-- **コントロール**: ロータリーノブ ではなく **縦フェーダー** (赤い長方形ノブ + 中央のヘアライン + 5 段のティック)
-- **セクションタイトル**: `01 VCO 1` のような番号付き (番号は赤、ラベルは黒)
-- **ヘッダ**: `OB-8 NATIVE` + `NO. 0427 REV. C FADER CUT` + 副題
-- **タブアンカー**: 上部に PROGRAM / OSC / FILTER / ENV / MOD / FX / PATCH (装飾のみ、現在は OSC ハイライト)
-- **フッタ**: 製図シート風タイトルブロック (TITLE / SERIES / SCALE / REV / DATE)
+- **フェーダー**: 矩形チャンネル + 中央 vertical track + **左右両側の 11 本ティック (両端と中央のみ強調)** + チャンネル幅いっぱいの赤い水平 thumb
+- **セクションタイトル**: `01 VCO 1` (番号は赤 mono bold、ラベルは黒 mono bold)
+- **ヘッダ**: `HAIRLINE-VIII` (mono bold 26px + extra kerning) + `NO. 0427 - REV. C - FADER CUT` (赤) + `eight-voice polyphonic - slider edition` (mute italic)、上下に細罫線
+- **DRAFT 透かし**: 中央に -0.42 rad 回転した italic 200px、alpha 0.10
+- **フッタ**: 6 カラムの製図シート風タイトルブロック (TITLE / SERIES / SCALE / SHEET / REV / DATE)、各カラムの上に小さい mute caption + 下に bold 値
+- **上部タブ / 下部プリセット strip は無し** (UX ノイズなのでカット)
 
 ## GUI レイアウト
 
-エディタは 1280 × 1060 (min 1180 × 960、リサイズ可)。`OB8Editor::resized()` が:
+エディタは 1280 × 1040 (min 1180 × 940、リサイズ可)。`OB8Editor::resized()` が:
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐

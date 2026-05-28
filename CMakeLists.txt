@@ -108,6 +108,48 @@ target_link_libraries(OB8Native PRIVATE
 
 target_include_directories(OB8Native PRIVATE Source)
 
+# ---- Bundled fonts ----------------------------------------------------------
+# Fetch IBM Plex Mono (OFL 1.1) at configure time and bundle it into the
+# binary via juce_add_binary_data so the editor uses the same compressed
+# monospace typeface on every install -- no system-font dependency, no font
+# style drift across macOS versions.
+set(OB8_FONT_DIR "${CMAKE_CURRENT_BINARY_DIR}/_fonts")
+file(MAKE_DIRECTORY "${OB8_FONT_DIR}")
+
+set(OB8_FONT_URL_BASE
+    "https://github.com/IBM/plex/raw/master/IBM-Plex-Mono/fonts/complete/ttf"
+)
+set(OB8_FONT_FILES
+    IBMPlexMono-Regular.ttf
+    IBMPlexMono-Bold.ttf
+    IBMPlexMono-Italic.ttf
+)
+set(OB8_FONT_BINARIES "")
+foreach(_f IN LISTS OB8_FONT_FILES)
+    set(_local "${OB8_FONT_DIR}/${_f}")
+    if(NOT EXISTS "${_local}")
+        message(STATUS "Downloading bundled font ${_f} from ibm/plex...")
+        file(DOWNLOAD
+            "${OB8_FONT_URL_BASE}/${_f}"
+            "${_local}"
+            STATUS _dl_status
+            SHOW_PROGRESS
+        )
+        list(GET _dl_status 0 _dl_code)
+        if(NOT _dl_code EQUAL 0)
+            list(GET _dl_status 1 _dl_msg)
+            message(FATAL_ERROR
+                "Font download failed (${_f}): ${_dl_msg}\n"
+                "Configure with an internet connection or place the file at "
+                "${_local} manually.")
+        endif()
+    endif()
+    list(APPEND OB8_FONT_BINARIES "${_local}")
+endforeach()
+
+juce_add_binary_data(OB8Fonts SOURCES ${OB8_FONT_BINARIES})
+target_link_libraries(OB8Native PRIVATE OB8Fonts)
+
 # ---- Linting / formatting ----------------------------------------------------
 # Manual-invoke targets so the regular `cmake --build` cycle stays fast.
 # Both rely on the project-root .clang-format / .clang-tidy.
