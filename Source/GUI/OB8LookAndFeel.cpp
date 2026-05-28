@@ -388,9 +388,10 @@ void OB8LookAndFeel::drawComboBox (juce::Graphics& g, int width, int height,
 
 void OB8LookAndFeel::positionComboBoxText (juce::ComboBox& cb, juce::Label& l)
 {
-    l.setBounds (6, 0, cb.getWidth() - 16, cb.getHeight());
-    l.setFont   (monoRegular (9.5f).withExtraKerningFactor (0.12f));
+    l.setBounds (4, 0, cb.getWidth() - 14, cb.getHeight());
+    l.setFont   (monoRegular (8.5f).withExtraKerningFactor (0.04f));
     l.setColour (juce::Label::textColourId, ink());
+    l.setMinimumHorizontalScale (0.6f);  // allow shrinking before truncating
 }
 
 void OB8LookAndFeel::drawButtonBackground (juce::Graphics& g, juce::Button& b,

@@ -160,9 +160,9 @@ OB8Editor::OB8Editor (OB8Processor& p)
     addAndMakeVisible (bankLabel);
     addAndMakeVisible (programLabel);
     addAndMakeVisible (patchNameLabel);
-    bankLabel.setColour    (juce::Label::textColourId, OB8LookAndFeel::panelAccent());
-    programLabel.setColour (juce::Label::textColourId, OB8LookAndFeel::panelAccent());
-    patchNameLabel.setColour (juce::Label::textColourId, OB8LookAndFeel::panelAccent());
+    bankLabel.setColour    (juce::Label::textColourId, OB8LookAndFeel::inkDim());
+    programLabel.setColour (juce::Label::textColourId, OB8LookAndFeel::inkDim());
+    patchNameLabel.setColour (juce::Label::textColourId, OB8LookAndFeel::inkDim());
     bankLabel.setFont      (OB8LookAndFeel::monoBold (10.5f));
     programLabel.setFont   (OB8LookAndFeel::monoBold (10.5f));
     patchNameLabel.setFont (OB8LookAndFeel::monoBold (10.5f));
@@ -176,9 +176,11 @@ OB8Editor::OB8Editor (OB8Processor& p)
     addAndMakeVisible (loadBankBtn);
 
     patchNameEdit.setText (processorRef.currentPatchName);
-    patchNameEdit.setColour (juce::TextEditor::backgroundColourId, OB8LookAndFeel::panelDark());
-    patchNameEdit.setColour (juce::TextEditor::textColourId,       OB8LookAndFeel::panelCream());
-    patchNameEdit.setColour (juce::TextEditor::outlineColourId,    OB8LookAndFeel::panelCream().withAlpha (0.4f));
+    patchNameEdit.setColour (juce::TextEditor::backgroundColourId, OB8LookAndFeel::paperBg());
+    patchNameEdit.setColour (juce::TextEditor::textColourId,       OB8LookAndFeel::ink());
+    patchNameEdit.setColour (juce::TextEditor::outlineColourId,    OB8LookAndFeel::hairline());
+    patchNameEdit.setColour (juce::TextEditor::highlightColourId,  OB8LookAndFeel::accent().withAlpha (0.30f));
+    patchNameEdit.setFont (OB8LookAndFeel::monoRegular (10.5f).withExtraKerningFactor (0.04f));
 
     populateBankCombo();
     populateProgramCombo();
@@ -709,7 +711,9 @@ void OB8Editor::resized()
     row2.removeFromLeft (8);
     layoutSection (sections[8], row2.removeFromLeft (wVel),  2);
     row2.removeFromLeft (8);
-    layoutSection (sections[9], row2,                        4);
+    // VOICE has 8 children (mode / uni-det / drift / volume / tune / bend
+    // / glide / hold). Spec wants them in a single row so use 8 columns.
+    layoutSection (sections[9], row2,                        8);
 
     bounds.removeFromTop (kInterRowGap);
 
