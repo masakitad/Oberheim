@@ -109,46 +109,90 @@ target_link_libraries(OB8Native PRIVATE
 target_include_directories(OB8Native PRIVATE Source)
 
 # ---- Bundled fonts ----------------------------------------------------------
-# Fetch IBM Plex Mono (OFL 1.1) at configure time and bundle it into the
-# binary via juce_add_binary_data so the editor uses the same compressed
-# monospace typeface on every install -- no system-font dependency, no font
-# style drift across macOS versions.
+# IBM Plex Mono (OFL 1.1) bundled into the binary so the editor uses the
+# same compressed monospace typeface on every install.
+#
+# The IBM/plex GitHub layout changed across versions; we try several known
+# mirrors in order until one returns a real TTF. As a final fallback the
+# build is allowed to proceed *without* the bundled font -- the editor
+# detects that case at runtime and falls back to the system mono face.
 set(OB8_FONT_DIR "${CMAKE_CURRENT_BINARY_DIR}/_fonts")
 file(MAKE_DIRECTORY "${OB8_FONT_DIR}")
 
-set(OB8_FONT_URL_BASE
-    "https://github.com/IBM/plex/raw/master/IBM-Plex-Mono/fonts/complete/ttf"
-)
-set(OB8_FONT_FILES
-    IBMPlexMono-Regular.ttf
-    IBMPlexMono-Bold.ttf
-    IBMPlexMono-Italic.ttf
-)
-set(OB8_FONT_BINARIES "")
-foreach(_f IN LISTS OB8_FONT_FILES)
-    set(_local "${OB8_FONT_DIR}/${_f}")
-    if(NOT EXISTS "${_local}")
-        message(STATUS "Downloading bundled font ${_f} from ibm/plex...")
-        file(DOWNLOAD
-            "${OB8_FONT_URL_BASE}/${_f}"
-            "${_local}"
-            STATUS _dl_status
-            SHOW_PROGRESS
-        )
-        list(GET _dl_status 0 _dl_code)
-        if(NOT _dl_code EQUAL 0)
-            list(GET _dl_status 1 _dl_msg)
-            message(FATAL_ERROR
-                "Font download failed (${_f}): ${_dl_msg}\n"
-                "Configure with an internet connection or place the file at "
-                "${_local} manually.")
+# Mapping from local file -> list of candidate URLs.
+# Order matters: the first one to come back as a successful HTTP 200 wins.
+#
+# 1) Fontsource via jsDelivr -- versioned, very stable, no GitHub rate-limits.
+# 2) jsDelivr's GitHub mirror of IBM/plex at a known-stable tag.
+# 3) Raw GitHub at the same tag.
+function(_ob8_try_download local_path url_list)
+    foreach(_url IN LISTS url_list)
+        message(STATUS "  trying ${_url}")
+        file(DOWNLOAD "${_url}" "${local_path}"
+             STATUS _dl_status
+             TIMEOUT 30)
+        list(GET _dl_status 0 _code)
+        if(_code EQUAL 0)
+            file(SIZE "${local_path}" _sz)
+            if(_sz GREATER 4096)   # rule out HTML 404 pages
+                message(STATUS "  ok (${_sz} bytes)")
+                return()
+            endif()
+            file(REMOVE "${local_path}")
         endif()
+    endforeach()
+    file(TOUCH "${local_path}.failed")
+endfunction()
+
+set(_fontsource_base
+    "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@5.0.13/files")
+set(_plex_tag    "v6.4.0")
+set(_plex_legacy "https://cdn.jsdelivr.net/gh/IBM/plex@${_plex_tag}/IBM-Plex-Mono/fonts/complete/ttf")
+set(_plex_raw    "https://raw.githubusercontent.com/IBM/plex/${_plex_tag}/IBM-Plex-Mono/fonts/complete/ttf")
+
+# (style, local-name, fontsource-name, ibm-name)
+set(_font_specs
+    "Regular|IBMPlexMono-Regular.ttf|ibm-plex-mono-latin-400-normal.ttf|IBMPlexMono-Regular.ttf"
+    "Bold|IBMPlexMono-Bold.ttf|ibm-plex-mono-latin-700-normal.ttf|IBMPlexMono-Bold.ttf"
+    "Italic|IBMPlexMono-Italic.ttf|ibm-plex-mono-latin-400-italic.ttf|IBMPlexMono-Italic.ttf"
+)
+
+set(OB8_FONT_BINARIES "")
+set(OB8_FONT_DOWNLOAD_OK TRUE)
+foreach(_spec IN LISTS _font_specs)
+    string(REPLACE "|" ";" _parts "${_spec}")
+    list(GET _parts 1 _local_name)
+    list(GET _parts 2 _fs_name)
+    list(GET _parts 3 _ibm_name)
+    set(_local "${OB8_FONT_DIR}/${_local_name}")
+
+    if(NOT EXISTS "${_local}")
+        message(STATUS "Fetching bundled font ${_local_name}...")
+        set(_urls
+            "${_fontsource_base}/${_fs_name}"
+            "${_plex_legacy}/${_ibm_name}"
+            "${_plex_raw}/${_ibm_name}"
+        )
+        _ob8_try_download ("${_local}" "${_urls}")
     endif()
-    list(APPEND OB8_FONT_BINARIES "${_local}")
+
+    if(EXISTS "${_local}")
+        list(APPEND OB8_FONT_BINARIES "${_local}")
+    else()
+        set(OB8_FONT_DOWNLOAD_OK FALSE)
+        message(WARNING "Could not fetch ${_local_name} from any mirror. "
+                        "The build will continue without the bundled font; "
+                        "the editor will fall back to the system mono face.")
+    endif()
 endforeach()
 
-juce_add_binary_data(OB8Fonts SOURCES ${OB8_FONT_BINARIES})
-target_link_libraries(OB8Native PRIVATE OB8Fonts)
+if(OB8_FONT_DOWNLOAD_OK AND OB8_FONT_BINARIES)
+    juce_add_binary_data(OB8Fonts SOURCES ${OB8_FONT_BINARIES})
+    target_link_libraries (OB8Native PRIVATE OB8Fonts)
+    target_compile_definitions (OB8Native PRIVATE OB8_HAS_BUNDLED_FONT=1)
+else()
+    target_compile_definitions (OB8Native PRIVATE OB8_HAS_BUNDLED_FONT=0)
+endif()
 
 # ---- Linting / formatting ----------------------------------------------------
 # Manual-invoke targets so the regular `cmake --build` cycle stays fast.
