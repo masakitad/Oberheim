@@ -14,7 +14,7 @@ OB8Knob::OB8Knob (juce::AudioProcessorValueTreeState& apvts,
 
     label.setText (labelText, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (juce::Font (juce::FontOptions (10.5f).withTypefaceStyle ("Plain")));
+    label.setFont (juce::Font (juce::FontOptions (10.5f).withStyle ("Plain")));
     label.setColour (juce::Label::textColourId, OB8LookAndFeel::panelDark());
     addAndMakeVisible (label);
 
@@ -52,7 +52,7 @@ OB8Choice::OB8Choice (juce::AudioProcessorValueTreeState& apvts,
     addAndMakeVisible (combo);
     label.setText (labelText, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (juce::Font (juce::FontOptions (10.5f).withTypefaceStyle ("Plain")));
+    label.setFont (juce::Font (juce::FontOptions (10.5f).withStyle ("Plain")));
     label.setColour (juce::Label::textColourId, OB8LookAndFeel::panelDark());
     addAndMakeVisible (label);
 
