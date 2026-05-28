@@ -1,5 +1,8 @@
 #include "OB8LookAndFeel.h"
-#include "BinaryData.h"
+
+#if OB8_HAS_BUNDLED_FONT
+ #include "BinaryData.h"
+#endif
 
 namespace ob8 {
 
@@ -8,26 +11,50 @@ juce::Typeface::Ptr loadBundled (const void* data, int size)
 {
     return juce::Typeface::createSystemTypefaceFor (data, static_cast<size_t> (size));
 }
+
+/*  Fallback when the bundled IBM Plex Mono download didn't succeed at
+    configure time. We grab whichever system monospace face is available
+    so the editor still renders cleanly. */
+juce::Typeface::Ptr loadSystemMono (juce::Font::FontStyleFlags style)
+{
+    juce::Font::FontStyleFlags resolved = style;
+    juce::Font f (juce::FontOptions ("Menlo", 12.0f, resolved));
+    if (f.getTypefaceName().isEmpty())
+        f = juce::Font (juce::FontOptions ("Monaco", 12.0f, resolved));
+    return juce::Typeface::createSystemTypefaceFor (f);
+}
 } // namespace
 
 juce::Typeface::Ptr OB8LookAndFeel::getMonoRegular()
 {
+   #if OB8_HAS_BUNDLED_FONT
     static juce::Typeface::Ptr tf = loadBundled (
         BinaryData::IBMPlexMonoRegular_ttf, BinaryData::IBMPlexMonoRegular_ttfSize);
+   #else
+    static juce::Typeface::Ptr tf = loadSystemMono (juce::Font::plain);
+   #endif
     return tf;
 }
 
 juce::Typeface::Ptr OB8LookAndFeel::getMonoBold()
 {
+   #if OB8_HAS_BUNDLED_FONT
     static juce::Typeface::Ptr tf = loadBundled (
         BinaryData::IBMPlexMonoBold_ttf, BinaryData::IBMPlexMonoBold_ttfSize);
+   #else
+    static juce::Typeface::Ptr tf = loadSystemMono (juce::Font::bold);
+   #endif
     return tf;
 }
 
 juce::Typeface::Ptr OB8LookAndFeel::getMonoItalic()
 {
+   #if OB8_HAS_BUNDLED_FONT
     static juce::Typeface::Ptr tf = loadBundled (
         BinaryData::IBMPlexMonoItalic_ttf, BinaryData::IBMPlexMonoItalic_ttfSize);
+   #else
+    static juce::Typeface::Ptr tf = loadSystemMono (juce::Font::italic);
+   #endif
     return tf;
 }
 
