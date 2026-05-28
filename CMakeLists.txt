@@ -85,6 +85,8 @@ target_sources(OB8Native PRIVATE
     Source/GUI/OB8Knob.cpp
     Source/GUI/OB8Knob.h
     Source/GUI/ModChip.h
+    Source/GUI/WaveformPreview.cpp
+    Source/GUI/WaveformPreview.h
 )
 
 target_compile_definitions(OB8Native PUBLIC

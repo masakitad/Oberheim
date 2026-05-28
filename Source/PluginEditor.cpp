@@ -2,6 +2,27 @@
 
 namespace ob8 {
 
+void FocusableKeyboard::drawWhiteNote (int midiNoteNumber, juce::Graphics& g,
+                                       juce::Rectangle<float> area,
+                                       bool isDown, bool isOver,
+                                       juce::Colour lineColour,
+                                       juce::Colour textColour)
+{
+    juce::MidiKeyboardComponent::drawWhiteNote (midiNoteNumber, g, area,
+                                                isDown, isOver, lineColour, textColour);
+
+    if (midiNoteNumber % 12 == 0)
+    {
+        const auto noteName = juce::MidiMessage::getMidiNoteName (
+            midiNoteNumber, true, true, getOctaveForMiddleC());
+        g.setColour (OB8LookAndFeel::ink().withAlpha (0.55f));
+        g.setFont   (OB8LookAndFeel::monoRegular (7.5f));
+        auto bottom = area.removeFromBottom (area.getHeight() * 0.30f);
+        g.drawText (noteName, bottom.toNearestInt(),
+                    juce::Justification::centred);
+    }
+}
+
 OB8Editor::OB8Editor (OB8Processor& p)
     : juce::AudioProcessorEditor (p),
       processorRef (p),
@@ -36,16 +57,20 @@ OB8Editor::OB8Editor (OB8Processor& p)
 
     auto& apvts = processorRef.apvts;
 
-    // VCO 1
-    vco1Oct .reset (new OB8Choice (apvts, ParamID::vco1Octave, "OCT"));
-    vco1Wave.reset (new OB8Choice (apvts, ParamID::vco1Wave,   "WAVE"));
-    vco1Pw  .reset (new OB8Knob   (apvts, ParamID::vco1Pw,     "PW"));
+    // VCO 1 -- Saw (idx 0) / Pulse (idx 1)
+    using WK = WaveformPreview::Kind;
+    const std::vector<WK> vcoKinds  { WK::Saw, WK::Square };
+    const std::vector<WK> lfoKinds  { WK::Tri, WK::Square, WK::Saw, WK::Saw, WK::Noise };
+
+    vco1Oct .reset (new OB8Choice       (apvts, ParamID::vco1Octave, "OCT"));
+    vco1Wave.reset (new WaveformPreview (apvts, ParamID::vco1Wave,   "WAVE", vcoKinds));
+    vco1Pw  .reset (new OB8Knob         (apvts, ParamID::vco1Pw,     "PW"));
 
     // VCO 2
-    vco2Oct   .reset (new OB8Choice (apvts, ParamID::vco2Octave, "OCT"));
-    vco2Wave  .reset (new OB8Choice (apvts, ParamID::vco2Wave,   "WAVE"));
-    vco2Pw    .reset (new OB8Knob   (apvts, ParamID::vco2Pw,     "PW"));
-    vco2Detune.reset (new OB8Knob   (apvts, ParamID::vco2Detune, "DETUNE"));
+    vco2Oct   .reset (new OB8Choice       (apvts, ParamID::vco2Octave, "OCT"));
+    vco2Wave  .reset (new WaveformPreview (apvts, ParamID::vco2Wave,   "WAVE", vcoKinds));
+    vco2Pw    .reset (new OB8Knob         (apvts, ParamID::vco2Pw,     "PW"));
+    vco2Detune.reset (new OB8Knob         (apvts, ParamID::vco2Detune, "DETUNE"));
 
     // X-MOD / Sync
     xMod.reset (new OB8Knob   (apvts, ParamID::xMod, "X-MOD"));
@@ -87,8 +112,8 @@ OB8Editor::OB8Editor (OB8Processor& p)
     ampR.reset (new OB8Knob (apvts, ParamID::ampR, "R"));
 
     // LFO
-    lfoRate  .reset (new OB8Knob   (apvts, ParamID::lfoRate,   "RATE"));
-    lfoShape .reset (new OB8Choice (apvts, ParamID::lfoShape,  "SHAPE"));
+    lfoRate  .reset (new OB8Knob         (apvts, ParamID::lfoRate,  "RATE"));
+    lfoShape .reset (new WaveformPreview (apvts, ParamID::lfoShape, "SHAPE", lfoKinds));
     lfoToVco1.reset (new OB8Knob   (apvts, ParamID::lfoToVco1, "VCO 1"));
     lfoToVco2.reset (new OB8Knob   (apvts, ParamID::lfoToVco2, "VCO 2"));
     lfoToPwm .reset (new OB8Knob   (apvts, ParamID::lfoToPwm,  "PWM"));
@@ -644,6 +669,45 @@ void OB8Editor::paint (juce::Graphics& g)
         }
     }
 
+    // ---- Keyboard dimension line (HAIRLINE-VIII §6.12) -----------------
+    if (! keyboardDimBounds.isEmpty())
+    {
+        auto dim = keyboardDimBounds.toFloat();
+        const float midY = dim.getCentreY();
+        const float capH = 7.0f;
+
+        // Tick caps at each end (drafting "extension" markers)
+        g.setColour (LF::inkDim());
+        g.drawLine (dim.getX() + 1.0f, midY - capH * 0.5f,
+                    dim.getX() + 1.0f, midY + capH * 0.5f, 1.0f);
+        g.drawLine (dim.getRight() - 1.0f, midY - capH * 0.5f,
+                    dim.getRight() - 1.0f, midY + capH * 0.5f, 1.0f);
+
+        // Centred label text: C1 — C8 · 50 KEYS
+        const juce::String dimText = juce::String::fromUTF8 (
+            "C1  \xe2\x80\x94  C8  \xc2\xb7  50 KEYS");
+        g.setColour (LF::inkDim());
+        g.setFont   (LF::monoRegular (8.0f).withExtraKerningFactor (0.18f));
+        const int textW = g.getCurrentFont().getStringWidth (dimText);
+        const float textCx = dim.getCentreX();
+        const juce::Rectangle<int> textBox (
+            static_cast<int> (textCx - textW * 0.5f - 6),
+            static_cast<int> (dim.getY()),
+            textW + 12,
+            static_cast<int> (dim.getHeight()));
+        g.drawText (dimText, textBox, juce::Justification::centred);
+
+        // Two dashed lines flanking the centre text (2px dash / 2px gap)
+        g.setColour (LF::hairFine());
+        auto drawDashedLine = [&] (float x0, float x1)
+        {
+            for (float x = x0; x < x1; x += 4.0f)
+                g.drawLine (x, midY, juce::jmin (x + 2.0f, x1), midY, 1.0f);
+        };
+        drawDashedLine (dim.getX() + 5.0f, static_cast<float> (textBox.getX() - 4));
+        drawDashedLine (static_cast<float> (textBox.getRight() + 4), dim.getRight() - 5.0f);
+    }
+
     // ---- Footer (engineering title block) ------------------------------
     auto footer = fullBounds; // local copy of full editor bounds
     footer = footer.removeFromBottom (36.0f).reduced (12.0f, 2.0f);
@@ -732,9 +796,12 @@ void OB8Editor::resized()
     bounds.removeFromBottom (36);
     bounds = bounds.reduced (16, 8);
 
-    // Reserve space at the bottom for the on-screen keyboard. Compact build:
-    // cap at 76 px so the synth panel itself keeps a usable height even on a
-    // 13" Mac display.
+    // Reserve a thin strip BELOW the keyboard for the dimension line, then
+    // the keyboard area itself. Compact build: cap at 76 px so the synth
+    // panel keeps a usable height even on a 13" Mac display.
+    constexpr int kDimH = 14;
+    auto dimStrip = bounds.removeFromBottom (kDimH);
+
     const int kKbdH = juce::jmin (76, juce::jmax (60, bounds.getHeight() / 11));
     auto kbdBounds = bounds.removeFromBottom (kKbdH);
 
@@ -746,6 +813,13 @@ void OB8Editor::resized()
     auto btnStrip   = octBounds.removeFromTop (26);
     octDownBtn.setBounds (btnStrip.removeFromLeft (btnStrip.getWidth() / 2).reduced (2));
     octUpBtn  .setBounds (btnStrip.reduced (2));
+
+    // Dimension line spans the same horizontal range as the playable keyboard
+    keyboardDimBounds = juce::Rectangle<int> (
+        kbdBounds.getX(), dimStrip.getY(),
+        kbdBounds.getWidth(), kDimH);
+
+    keyboard.setBounds (kbdBounds);
 
     bounds.removeFromBottom (6);
 
@@ -777,8 +851,6 @@ void OB8Editor::resized()
         for (auto& s : sections) s.bounds = {};
         return;
     }
-
-    keyboard.setBounds (kbdBounds);
 
     // Allocate the four rows proportionally so the window resizes cleanly.
     // Weights (30/24/26/20) keep the knob clusters legible while leaving
