@@ -3,6 +3,7 @@
 #include "PluginProcessor.h"
 #include "GUI/OB8LookAndFeel.h"
 #include "GUI/OB8Knob.h"
+#include "GUI/ModChip.h"
 
 #include <juce_audio_utils/juce_audio_utils.h>   // MidiKeyboardComponent
 
@@ -117,6 +118,16 @@ private:
     juce::Label       octaveLabel { {}, "C3" };
     int               pcKeyboardBaseOctave { 4 };  // makes 'A' = MIDI 48 = C3
     void updateOctaveLabel();
+
+    // FILTER section ModChips (handoff §6.4 example): the CUTOFF knob is
+    // modulated by E2 (filter env), L1 (LFO), V1 (velocity); RES is
+    // modulated by E2. We render these as small chips below the relevant
+    // knob's value display.
+    std::unique_ptr<ModChip> chipCutoffE2, chipCutoffL1, chipCutoffV1, chipResE2;
+
+    // Cached paper-texture overlay -- built once and blitted by paint().
+    juce::Image paperTexture;
+    void buildPaperTexture();
 
     // SIMPLE-view macros + the view-mode selector itself
     std::unique_ptr<OB8Knob>   macroTone, macroMotion, macroSpace;

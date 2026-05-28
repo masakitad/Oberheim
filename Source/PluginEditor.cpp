@@ -64,6 +64,16 @@ OB8Editor::OB8Editor (OB8Processor& p)
     kbdTrack .reset (new OB8Knob   (apvts, ParamID::kbdTrack,  "KBD"));
     slope    .reset (new OB8Choice (apvts, ParamID::slope,     "SLOPE"));
 
+    // FILTER ModChips (handoff §6.4)
+    chipCutoffE2.reset (new ModChip ("E2"));
+    chipCutoffL1.reset (new ModChip ("L1"));
+    chipCutoffV1.reset (new ModChip ("V1"));
+    chipResE2   .reset (new ModChip ("E2"));
+    addAndMakeVisible (*chipCutoffE2);
+    addAndMakeVisible (*chipCutoffL1);
+    addAndMakeVisible (*chipCutoffV1);
+    addAndMakeVisible (*chipResE2);
+
     // Filter env
     filtA.reset (new OB8Knob (apvts, ParamID::filtA, "A"));
     filtD.reset (new OB8Knob (apvts, ParamID::filtD, "D"));
@@ -283,6 +293,8 @@ OB8Editor::OB8Editor (OB8Processor& p)
     setResizeLimits (1180, 820, 1920, 1300);
     setSize (1280, 920);
 
+    buildPaperTexture();
+
     // Initial visibility based on the persisted view mode parameter.
     applyViewMode();
 }
@@ -294,6 +306,61 @@ void OB8Editor::updateOctaveLabel()
     const int oct = pcKeyboardBaseOctave - 1; // setOctaveForMiddleC(4) means MIDI 60 = C4
     octaveLabel.setText (juce::String ("C") + juce::String (oct),
                          juce::dontSendNotification);
+}
+
+void OB8Editor::buildPaperTexture()
+{
+    // Composite three low-alpha layers onto a transparent canvas:
+    //   1. warm halo (centre-top to bottom darken)
+    //   2. fiber lines (very faint diagonals)
+    //   3. vignette (corners darkened)
+    // The result is cached as juce::Image and re-blitted each paint().
+    const int w = juce::jmax (1, getWidth());
+    const int h = juce::jmax (1, getHeight());
+    if (w < 4 || h < 4) return;
+
+    paperTexture = juce::Image (juce::Image::ARGB, w, h, true);
+    juce::Graphics tg (paperTexture);
+
+    using LF = OB8LookAndFeel;
+
+    // 1. Halo: a soft radial highlight near the top centre
+    {
+        juce::ColourGradient halo (
+            LF::ink().withAlpha (0.00f), w * 0.5f, h * 0.20f,
+            LF::ink().withAlpha (0.04f), 0.0f,     h * 1.10f,
+            true);
+        tg.setGradientFill (halo);
+        tg.fillRect (juce::Rectangle<int> (0, 0, w, h));
+    }
+
+    // 2. Fiber lines: shallow diagonals at very low alpha
+    {
+        tg.setColour (LF::ink().withAlpha (0.018f));
+        for (int i = -h; i < w; i += 11)
+        {
+            tg.drawLine (static_cast<float> (i),       0.0f,
+                         static_cast<float> (i + h),   static_cast<float> (h),
+                         0.5f);
+        }
+        tg.setColour (LF::ink().withAlpha (0.012f));
+        for (int i = -h; i < w; i += 9)
+        {
+            tg.drawLine (static_cast<float> (i + h),   0.0f,
+                         static_cast<float> (i),       static_cast<float> (h),
+                         0.5f);
+        }
+    }
+
+    // 3. Vignette: four corner shadings
+    {
+        juce::ColourGradient vg (
+            LF::ink().withAlpha (0.00f), w * 0.5f, h * 0.5f,
+            LF::ink().withAlpha (0.08f), 0.0f,     0.0f,
+            true);
+        tg.setGradientFill (vg);
+        tg.fillRect (juce::Rectangle<int> (0, 0, w, h));
+    }
 }
 
 OB8Editor::~OB8Editor()
@@ -341,6 +408,12 @@ void OB8Editor::applyViewMode()
     storeBtn.setVisible       (! simple);
     recallBtn.setVisible      (! simple);
     saveBankBtn.setVisible    (! simple);
+
+    // ModChips track the FULL view
+    if (chipCutoffE2) chipCutoffE2->setVisible (! simple);
+    if (chipCutoffL1) chipCutoffL1->setVisible (! simple);
+    if (chipCutoffV1) chipCutoffV1->setVisible (! simple);
+    if (chipResE2)    chipResE2   ->setVisible (! simple);
     loadBankBtn.setVisible    (! simple);
 
     resized();
@@ -481,8 +554,26 @@ void OB8Editor::paint (juce::Graphics& g)
     using LF = OB8LookAndFeel;
     const auto fullBounds = getLocalBounds().toFloat();
 
-    // ---- 1. Paper background --------------------------------------------
+    // ---- 1. Paper background + cached overlay texture -------------------
     g.fillAll (LF::paperBg());
+    if (paperTexture.isValid())
+        g.drawImageAt (paperTexture, 0, 0);
+
+    // ---- Corner registration marks (handoff §6 - crosshair + circle) ----
+    {
+        const float r        = 5.0f;
+        const float inset    = 12.0f;
+        const float tickLen  = 7.0f;
+        g.setColour (LF::hairFine());
+        for (int corner = 0; corner < 4; ++corner)
+        {
+            const float cx = (corner & 1) ? fullBounds.getWidth() - inset : inset;
+            const float cy = (corner & 2) ? fullBounds.getHeight() - inset : inset;
+            g.drawEllipse (cx - r, cy - r, r * 2.0f, r * 2.0f, 0.7f);
+            g.drawLine (cx - tickLen, cy, cx + tickLen, cy, 0.7f);
+            g.drawLine (cx, cy - tickLen, cx, cy + tickLen, 0.7f);
+        }
+    }
 
     // ---- 2. Header: HAIRLINE-VIII (Fraunces 30 / 600) + metadata --------
     const float kHeaderH = 56.0f;
@@ -616,6 +707,11 @@ void OB8Editor::layoutSection (Section& s, juce::Rectangle<int> bounds, int cols
 
 void OB8Editor::resized()
 {
+    // Rebuild the cached paper texture whenever the editor size changes
+    // (constructor sets the initial size after construction, so the first
+    // call here is what populates the image).
+    buildPaperTexture();
+
     auto bounds = getLocalBounds();
 
     // View-mode selector sits in the top-right of the header band so it's
@@ -782,6 +878,32 @@ void OB8Editor::resized()
     layoutSection (sections[14], row4.removeFromLeft (wReverb), 7);
     row4.removeFromLeft (8);
     layoutSection (sections[15], row4,                          7);
+
+    // ---- FILTER ModChips ------------------------------------------------
+    // Position them inline below the CUTOFF and RES knob value displays.
+    // Handoff §6.4: chip height 12 px; we lay them out side-by-side.
+    if (cutoff != nullptr && chipCutoffE2 != nullptr)
+    {
+        auto place = [&] (ModChip& c, juce::Rectangle<int>& cursor)
+        {
+            const int w = c.preferredWidth();
+            c.setBounds (cursor.removeFromLeft (w + 4).withTrimmedRight (4)
+                                                       .withHeight (ModChip::kHeight)
+                                                       .withY (cursor.getY()));
+        };
+        const int chipBaselineOffset = 4;
+        auto cutoffBox = cutoff->getBounds()
+                            .withTrimmedTop (cutoff->getHeight() - ModChip::kHeight - chipBaselineOffset)
+                            .reduced (2, 0);
+        place (*chipCutoffE2, cutoffBox);
+        place (*chipCutoffL1, cutoffBox);
+        place (*chipCutoffV1, cutoffBox);
+
+        auto resBox = resonance->getBounds()
+                         .withTrimmedTop (resonance->getHeight() - ModChip::kHeight - chipBaselineOffset)
+                         .reduced (2, 0);
+        place (*chipResE2, resBox);
+    }
 }
 
 } // namespace ob8
