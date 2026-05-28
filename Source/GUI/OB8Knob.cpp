@@ -7,15 +7,18 @@ OB8Knob::OB8Knob (juce::AudioProcessorValueTreeState& apvts,
                   const juce::String& paramID,
                   const juce::String& labelText)
 {
-    slider.setSliderStyle (juce::Slider::LinearVertical);
-    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 70, 14);
+    slider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
+    slider.setTextBoxStyle (juce::Slider::TextBoxBelow, false, 64, 12);
+    slider.setRotaryParameters (juce::MathConstants<float>::pi * 1.25f,
+                                juce::MathConstants<float>::pi * 2.75f,
+                                true);
     slider.setVelocityBasedMode (false);
     addAndMakeVisible (slider);
 
     label.setText (labelText, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (OB8LookAndFeel::monoBold (10.0f).withExtraKerningFactor (0.05f));
-    label.setColour (juce::Label::textColourId, OB8LookAndFeel::panelDark());
+    label.setFont (OB8LookAndFeel::monoRegular (9.0f).withExtraKerningFactor (0.18f));
+    label.setColour (juce::Label::textColourId, OB8LookAndFeel::ink());
     addAndMakeVisible (label);
 
     attachment.reset (new juce::AudioProcessorValueTreeState::SliderAttachment (apvts, paramID, slider));
@@ -52,8 +55,8 @@ OB8Choice::OB8Choice (juce::AudioProcessorValueTreeState& apvts,
     addAndMakeVisible (combo);
     label.setText (labelText, juce::dontSendNotification);
     label.setJustificationType (juce::Justification::centred);
-    label.setFont (OB8LookAndFeel::monoBold (10.0f).withExtraKerningFactor (0.05f));
-    label.setColour (juce::Label::textColourId, OB8LookAndFeel::panelDark());
+    label.setFont (OB8LookAndFeel::monoRegular (9.0f).withExtraKerningFactor (0.18f));
+    label.setColour (juce::Label::textColourId, OB8LookAndFeel::ink());
     addAndMakeVisible (label);
 
     if (auto* p = dynamic_cast<juce::AudioParameterChoice*> (apvts.getParameter (paramID)))

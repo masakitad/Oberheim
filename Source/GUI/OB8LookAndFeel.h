@@ -5,40 +5,59 @@
 namespace ob8 {
 
 /*
-    "HAIRLINE" look-and-feel: technical-drawing-style cream paper background
-    with red accents and 1-px hairline framing.
+    HAIRLINE-VIII look-and-feel.
 
-    Typography: bundled IBM Plex Mono (OFL 1.1). Three weights -- Regular,
-    Bold, Italic -- are baked into the binary at build time so the
-    appearance is identical on every install.
+    Drafting ink on aged paper -- monospace UI text, serif display title,
+    1 px hairline strokes and a single vermillion-red annotation accent.
+    Faithful to the design handoff bundled in design_handoff_hairline_viii/.
 
-    Palette:
-      - panelCream  : warm paper colour
-      - panelDark   : near-black text / hairline strokes
-      - panelAccent : vermillion red (sliders, numbers, active indicators)
-      - panelMute   : muted grey for ticks / field captions
+    Tokens (from §4 Design Tokens):
+      paperBg   #efe6cc   warm cream paper
+      ink       #1a2538   deep navy-brown for text and lines
+      inkDim    rgba(ink, 0.58)
+      inkFaint  rgba(ink, 0.20)
+      hairline  rgba(ink, 0.42)
+      hairFine  rgba(ink, 0.20)
+      accent    #a23a1a   red annotation pen
+
+    Typography:
+      Display = Fraunces (serif)        -- the "HAIRLINE-VIII" wordmark
+      UI      = IBM Plex Mono (mono)    -- everything else
 */
 class OB8LookAndFeel : public juce::LookAndFeel_V4
 {
 public:
     OB8LookAndFeel();
 
-    static juce::Colour panelCream()  { return juce::Colour::fromRGB (236, 226, 200); }
-    static juce::Colour panelBlue()   { return panelCream(); }     // legacy alias
-    static juce::Colour panelDark()   { return juce::Colour::fromRGB (22,  20,  18);  }
-    static juce::Colour panelAccent() { return juce::Colour::fromRGB (194, 57,  43);  }
-    static juce::Colour panelOrange() { return panelAccent(); }    // legacy alias
-    static juce::Colour panelMute()   { return juce::Colour::fromRGB (140, 132, 118); }
+    // ---- Design tokens ----------------------------------------------------
+    static juce::Colour paperBg()  { return juce::Colour::fromRGB (239, 230, 204); }
+    static juce::Colour ink()      { return juce::Colour::fromRGB (26,  37,  56);  }
+    static juce::Colour inkDim()   { return ink().withAlpha (0.58f); }
+    static juce::Colour inkFaint() { return ink().withAlpha (0.20f); }
+    static juce::Colour hairline() { return ink().withAlpha (0.42f); }
+    static juce::Colour hairFine() { return ink().withAlpha (0.20f); }
+    static juce::Colour accent()   { return juce::Colour::fromRGB (162, 58, 26); }
 
-    // Typeface accessors (used by the editor and embedded controls)
+    // Legacy aliases so older call sites keep compiling
+    static juce::Colour panelCream()  { return paperBg(); }
+    static juce::Colour panelBlue()   { return paperBg(); }
+    static juce::Colour panelDark()   { return ink(); }
+    static juce::Colour panelMute()   { return inkDim(); }
+    static juce::Colour panelAccent() { return accent(); }
+    static juce::Colour panelOrange() { return accent(); }
+
+    // ---- Typefaces --------------------------------------------------------
     static juce::Typeface::Ptr getMonoRegular();
     static juce::Typeface::Ptr getMonoBold();
     static juce::Typeface::Ptr getMonoItalic();
+    static juce::Typeface::Ptr getSerifSemiBold();
 
-    static juce::Font monoRegular (float heightPx);
-    static juce::Font monoBold    (float heightPx);
-    static juce::Font monoItalic  (float heightPx);
+    static juce::Font monoRegular  (float heightPx);
+    static juce::Font monoBold     (float heightPx);
+    static juce::Font monoItalic   (float heightPx);
+    static juce::Font serifSemiBold (float heightPx);
 
+    // ---- Component drawing ------------------------------------------------
     void drawRotarySlider (juce::Graphics&, int x, int y, int w, int h,
                            float sliderPosProportional,
                            float rotaryStartAngle, float rotaryEndAngle,
@@ -66,7 +85,6 @@ public:
     juce::Font getComboBoxFont   (juce::ComboBox&) override;
     juce::Font getTextButtonFont (juce::TextButton&, int buttonHeight) override;
     juce::Font getPopupMenuFont() override;
-    juce::Font getTextEditorFont (juce::TextEditor&);
 
     juce::Typeface::Ptr getTypefaceForFont (const juce::Font&) override;
 };

@@ -20,18 +20,19 @@ OB8Editor::OB8Editor (OB8Processor& p)
     keyboard.setLowestVisibleKey (48);            // start at C3 (scientific)
     keyboard.setOctaveForMiddleC (4);             // MIDI 60 labelled "C4"
     keyboard.setKeyPressBaseOctave (4);           // PC 'A' key plays C3 = MIDI 48
+    // White keys: warm cream-paper tint (handoff §6.12)
     keyboard.setColour (juce::MidiKeyboardComponent::whiteNoteColourId,
-                        OB8LookAndFeel::panelCream());
+                        juce::Colour::fromRGBA (255, 250, 235, 90));
     keyboard.setColour (juce::MidiKeyboardComponent::blackNoteColourId,
-                        OB8LookAndFeel::panelDark());
+                        OB8LookAndFeel::ink());
     keyboard.setColour (juce::MidiKeyboardComponent::keySeparatorLineColourId,
-                        OB8LookAndFeel::panelDark().withAlpha (0.7f));
+                        OB8LookAndFeel::hairline());
     keyboard.setColour (juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId,
-                        OB8LookAndFeel::panelOrange().withAlpha (0.35f));
+                        OB8LookAndFeel::accent().withAlpha (0.25f));
     keyboard.setColour (juce::MidiKeyboardComponent::keyDownOverlayColourId,
-                        OB8LookAndFeel::panelOrange().withAlpha (0.75f));
+                        OB8LookAndFeel::accent().withAlpha (0.65f));
     keyboard.setColour (juce::MidiKeyboardComponent::textLabelColourId,
-                        OB8LookAndFeel::panelDark());
+                        OB8LookAndFeel::ink());
 
     auto& apvts = processorRef.apvts;
 
@@ -258,14 +259,12 @@ OB8Editor::OB8Editor (OB8Processor& p)
     };
     updateOctaveLabel();
 
-    // Resizable so the editor fits laptop screens. The resized() layout
-    // scales the rows proportionally inside the new bounds, so it stays
-    // usable down to the minimum size. Default size accommodates the new
-    // header / tab anchor row / engineering title-block footer in addition
-    // to the four control rows + keyboard.
+    // Per the HAIRLINE-VIII handoff, the panel is designed at a fixed
+    // 1280 px width. We keep it resizable for laptop screens but lock
+    // the aspect roughly at the designed proportions.
     setResizable (true, true);
     setResizeLimits (1180, 820, 1920, 1300);
-    setSize (1280, 880);
+    setSize (1280, 920);
 
     // Initial visibility based on the persisted view mode parameter.
     applyViewMode();
@@ -464,108 +463,116 @@ void OB8Editor::paint (juce::Graphics& g)
 {
     using LF = OB8LookAndFeel;
     const auto fullBounds = getLocalBounds().toFloat();
-    auto bounds = fullBounds;
 
-    // ---- Paper background -----------------------------------------------
-    g.fillAll (LF::panelCream());
+    // ---- 1. Paper background --------------------------------------------
+    g.fillAll (LF::paperBg());
 
-    // Subtle horizontal hairline grain to suggest cold-press paper.
-    // Cheap: a few off-white lines spaced irregularly. Imperceptible at
-    // a glance but breaks the dead-flat fill.
-    g.setColour (LF::panelDark().withAlpha (0.03f));
-    for (int i = 0; i < 5; ++i)
-    {
-        const float y = (fullBounds.getHeight() / 6.0f) * (i + 1);
-        g.drawLine (0.0f, y, fullBounds.getWidth(), y, 0.5f);
-    }
+    // ---- 2. Header: HAIRLINE-VIII (Fraunces 30 / 600) + metadata --------
+    const float kHeaderH = 56.0f;
+    auto header = fullBounds.withHeight (kHeaderH);
+    auto headerInner = header.reduced (26.0f, 14.0f);
 
-    // ---- Header ---------------------------------------------------------
-    auto header = bounds.removeFromTop (44.0f);
-    // Title hairline above and below the band -- thinner edges for the
-    // compact build.
-    g.setColour (LF::panelDark());
-    g.drawLine (12.0f, header.getY()     + 4.0f,
-                fullBounds.getWidth() - 12.0f, header.getY()     + 4.0f, 0.8f);
-    g.drawLine (12.0f, header.getBottom() - 2.0f,
-                fullBounds.getWidth() - 12.0f, header.getBottom() - 2.0f, 0.8f);
+    // Wordmark (serif)
+    g.setColour (LF::ink());
+    g.setFont   (LF::serifSemiBold (30.0f).withExtraKerningFactor (0.02f));
+    const juce::String wordmark = "HAIRLINE-VIII";
+    const int wordW = g.getCurrentFont().getStringWidth (wordmark);
+    g.drawText (wordmark, headerInner, juce::Justification::centredLeft);
 
-    auto inner = header.reduced (18.0f, 6.0f);
-    g.setColour (LF::panelDark());
-    g.setFont (LF::monoBold (20.0f).withExtraKerningFactor (0.04f));
-    g.drawText ("HAIRLINE-VIII", inner, juce::Justification::centredLeft);
+    // Series line in accent red, right of the wordmark
+    auto seriesRect = headerInner;
+    seriesRect.removeFromLeft (static_cast<float> (wordW) + 18.0f);
+    g.setColour (LF::accent());
+    g.setFont   (LF::monoRegular (9.5f).withExtraKerningFactor (0.12f));
+    g.drawText (juce::String::fromUTF8 ("NO. 0427  \xc2\xb7  REV. C  \xc2\xb7  FADER CUT"),
+                seriesRect, juce::Justification::centredLeft);
 
-    auto subLeft = inner;
-    subLeft.removeFromLeft (180.0f);
-    g.setColour (LF::panelAccent());
-    g.setFont (LF::monoBold (10.0f).withExtraKerningFactor (0.05f));
-    g.drawText ("NO. 0427  -  REV. C  -  FADER CUT", subLeft,
-                juce::Justification::centredLeft);
+    // Tagline (italic mono, right edge)
+    g.setColour (LF::inkDim());
+    g.setFont   (LF::monoItalic (10.0f).withExtraKerningFactor (0.08f));
+    g.drawText (juce::String::fromUTF8 ("eight-voice polyphonic  \xc2\xb7  drafted at 1:1"),
+                headerInner, juce::Justification::centredRight);
 
-    g.setColour (LF::panelMute());
-    g.setFont (LF::monoItalic (10.0f));
-    g.drawText ("eight-voice polyphonic  -  slider edition",
-                inner, juce::Justification::centredRight);
+    // Hairline rule under the header (bands separated by 1px hairlines only)
+    g.setColour (LF::hairline());
+    g.drawLine (26.0f, header.getBottom(),
+                fullBounds.getWidth() - 26.0f, header.getBottom(), 1.0f);
 
-    // ---- Section frames + numbered titles ------------------------------
+    // ---- 3. Numbered section titles -- no box frames, just a row label --
+    // The cells share band hairlines; we draw only the numbered title in
+    // the top-left of each cell rect computed by layoutSection.
     for (auto& s : sections)
     {
         auto r = s.bounds.toFloat();
         if (r.isEmpty()) continue;
 
-        g.setColour (LF::panelCream());
-        g.fillRect (r);
-        g.setColour (LF::panelDark());
-        g.drawRect (r, 0.8f);
-
-        // Numbered title strip
-        auto titleStrip = r.removeFromTop (20.0f).reduced (6.0f, 0.0f);
         const int idx = static_cast<int> (&s - &sections[0]) + 1;
         const auto indexStr = (idx < 10 ? juce::String ("0") + juce::String (idx)
                                         : juce::String (idx));
 
-        g.setColour (LF::panelAccent());
-        g.setFont (LF::monoBold (11.0f).withExtraKerningFactor (0.05f));
+        auto titleStrip = r.removeFromTop (14.0f).reduced (4.0f, 0.0f);
+
+        g.setColour (LF::inkFaint());
+        g.setFont   (LF::monoRegular (9.0f).withExtraKerningFactor (0.20f));
         g.drawText (indexStr, titleStrip.removeFromLeft (20.0f),
                     juce::Justification::centredLeft);
 
-        g.setColour (LF::panelDark());
-        g.setFont (LF::monoBold (11.0f).withExtraKerningFactor (0.05f));
-        g.drawText (s.title, titleStrip, juce::Justification::centredLeft);
+        g.setColour (LF::ink());
+        g.setFont   (LF::monoRegular (9.0f).withExtraKerningFactor (0.20f));
+        g.drawText (s.title.toUpperCase(), titleStrip,
+                    juce::Justification::centredLeft);
+
+        // Vertical hair separator on the cell's right edge (skip for the
+        // rightmost cells -- detected by being within a few pixels of the
+        // panel right margin)
+        if (s.bounds.getRight() < fullBounds.getWidth() - 32)
+        {
+            g.setColour (LF::hairFine());
+            g.drawLine (s.bounds.getRight() + 0.5f, s.bounds.getY() + 4.0f,
+                        s.bounds.getRight() + 0.5f, s.bounds.getBottom() - 4.0f,
+                        1.0f);
+        }
     }
 
     // ---- Footer (engineering title block) ------------------------------
     auto footer = fullBounds; // local copy of full editor bounds
-    footer = footer.removeFromBottom (24.0f).reduced (12.0f, 3.0f);
+    footer = footer.removeFromBottom (36.0f).reduced (12.0f, 2.0f);
     g.setColour (LF::panelDark());
     g.drawRect (footer, 0.8f);
 
     const char* fields[][2] = {
-        { "TITLE",  "HAIRLINE-VIII" },
-        { "SERIES", "No. 0427  /  Rev. C  /  Fader Cut" },
-        { "SCALE",  "1 : 1" },
-        { "SHEET",  "01 / 01" },
-        { "REV",    "C" },
-        { "DATE",   "2026.05" },
+        { "TITLE",  "HAIRLINE-VIII"       },
+        { "SERIES", "No. 0427 \xc2\xb7 rev. C" },
+        { "SCALE",  "1 : 1"               },
+        { "SHEET",  "01 / 01"             },
+        { "REV",    "C"                   },
+        { "DATE",   "2026\xc2\xb7""05"    },
     };
     constexpr int kNumFields = sizeof(fields) / sizeof(fields[0]);
-    const float colW = footer.getWidth() / static_cast<float> (kNumFields);
+    // TITLE and SERIES are 2x wider than the others (per spec)
+    const float widths[kNumFields] = { 2.0f, 2.0f, 1.0f, 1.0f, 1.0f, 1.0f };
+    float widthSum = 0.0f;
+    for (float w : widths) widthSum += w;
+    const float unit = footer.getWidth() / widthSum;
     for (int i = 0; i < kNumFields; ++i)
     {
-        auto cell = footer.removeFromLeft (colW);
+        auto cell = footer.removeFromLeft (widths[i] * unit);
         if (i > 0)
         {
-            g.setColour (LF::panelDark());
-            g.drawLine (cell.getX(), cell.getY(),
-                        cell.getX(), cell.getBottom(), 0.6f);
+            g.setColour (LF::hairFine());
+            g.drawLine (cell.getX(), cell.getY() + 2.0f,
+                        cell.getX(), cell.getBottom() - 2.0f, 1.0f);
         }
-        auto cinner = cell.reduced (6.0f, 1.0f);
-        g.setColour (LF::panelMute());
-        g.setFont (LF::monoRegular (7.5f).withExtraKerningFactor (0.10f));
-        g.drawText (fields[i][0], cinner.removeFromTop (8.0f),
+        auto cinner = cell.reduced (10.0f, 4.0f);
+        g.setColour (LF::inkDim());
+        g.setFont   (LF::monoRegular (7.5f).withExtraKerningFactor (0.20f));
+        g.drawText (juce::String (fields[i][0]).toUpperCase(),
+                    cinner.removeFromTop (10.0f),
                     juce::Justification::centredLeft);
-        g.setColour (LF::panelDark());
-        g.setFont (LF::monoBold (9.0f));
-        g.drawText (fields[i][1], cinner, juce::Justification::centredLeft);
+        g.setColour (LF::ink());
+        g.setFont   (LF::monoRegular (10.5f).withExtraKerningFactor (0.04f));
+        g.drawText (juce::String::fromUTF8 (fields[i][1]),
+                    cinner, juce::Justification::centredLeft);
     }
 }
 
@@ -604,10 +611,11 @@ void OB8Editor::resized()
     }
 
     // Header (44 px) drawn in paint() -- no anchor tab row in this build
-    bounds.removeFromTop (44);
-    // Engineering title-block footer (24 px) drawn in paint()
-    bounds.removeFromBottom (24);
-    bounds = bounds.reduced (8);
+    // Header band (56 px) drawn in paint()
+    bounds.removeFromTop (56);
+    // Engineering title-block footer (36 px) drawn in paint()
+    bounds.removeFromBottom (36);
+    bounds = bounds.reduced (16, 8);
 
     // Reserve space at the bottom for the on-screen keyboard. Compact build:
     // cap at 76 px so the synth panel itself keeps a usable height even on a

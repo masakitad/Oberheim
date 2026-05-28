@@ -145,17 +145,21 @@ function(_ob8_try_download local_path url_list)
     file(TOUCH "${local_path}.failed")
 endfunction()
 
-set(_fontsource_base
+set(_fontsource_plex
     "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-mono@5.0.13/files")
+set(_fontsource_fraunces
+    "https://cdn.jsdelivr.net/npm/@fontsource/fraunces@5.0.16/files")
 set(_plex_tag    "v6.4.0")
 set(_plex_legacy "https://cdn.jsdelivr.net/gh/IBM/plex@${_plex_tag}/IBM-Plex-Mono/fonts/complete/ttf")
 set(_plex_raw    "https://raw.githubusercontent.com/IBM/plex/${_plex_tag}/IBM-Plex-Mono/fonts/complete/ttf")
 
-# (style, local-name, fontsource-name, ibm-name)
+# (style, local-name, primary-url, fallback-url, fallback-url-2)
+# Three IBM Plex Mono weights + one Fraunces weight for the display title.
 set(_font_specs
-    "Regular|IBMPlexMono-Regular.ttf|ibm-plex-mono-latin-400-normal.ttf|IBMPlexMono-Regular.ttf"
-    "Bold|IBMPlexMono-Bold.ttf|ibm-plex-mono-latin-700-normal.ttf|IBMPlexMono-Bold.ttf"
-    "Italic|IBMPlexMono-Italic.ttf|ibm-plex-mono-latin-400-italic.ttf|IBMPlexMono-Italic.ttf"
+    "Regular|IBMPlexMono-Regular.ttf|${_fontsource_plex}/ibm-plex-mono-latin-400-normal.ttf|${_plex_legacy}/IBMPlexMono-Regular.ttf|${_plex_raw}/IBMPlexMono-Regular.ttf"
+    "Bold|IBMPlexMono-Bold.ttf|${_fontsource_plex}/ibm-plex-mono-latin-700-normal.ttf|${_plex_legacy}/IBMPlexMono-Bold.ttf|${_plex_raw}/IBMPlexMono-Bold.ttf"
+    "Italic|IBMPlexMono-Italic.ttf|${_fontsource_plex}/ibm-plex-mono-latin-400-italic.ttf|${_plex_legacy}/IBMPlexMono-Italic.ttf|${_plex_raw}/IBMPlexMono-Italic.ttf"
+    "FrauncesSemiBold|Fraunces-SemiBold.ttf|${_fontsource_fraunces}/fraunces-latin-600-normal.ttf|${_fontsource_fraunces}/fraunces-latin-500-normal.ttf|${_fontsource_fraunces}/fraunces-latin-400-normal.ttf"
 )
 
 set(OB8_FONT_BINARIES "")
@@ -163,17 +167,14 @@ set(OB8_FONT_DOWNLOAD_OK TRUE)
 foreach(_spec IN LISTS _font_specs)
     string(REPLACE "|" ";" _parts "${_spec}")
     list(GET _parts 1 _local_name)
-    list(GET _parts 2 _fs_name)
-    list(GET _parts 3 _ibm_name)
+    list(GET _parts 2 _url1)
+    list(GET _parts 3 _url2)
+    list(GET _parts 4 _url3)
     set(_local "${OB8_FONT_DIR}/${_local_name}")
 
     if(NOT EXISTS "${_local}")
         message(STATUS "Fetching bundled font ${_local_name}...")
-        set(_urls
-            "${_fontsource_base}/${_fs_name}"
-            "${_plex_legacy}/${_ibm_name}"
-            "${_plex_raw}/${_ibm_name}"
-        )
+        set(_urls "${_url1}" "${_url2}" "${_url3}")
         _ob8_try_download ("${_local}" "${_urls}")
     endif()
 
