@@ -151,6 +151,13 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (reverbWidth,      "Reverb Width",      Range (0.0f, 1.0f),     1.0f));
     layout.add (mkF (reverbMix,        "Reverb Mix",        Range (0.0f, 1.0f),     0.0f));
 
+    // Simple-view macros
+    const juce::StringArray viewModes { "Full", "Simple" };
+    layout.add (mkF (macroTone,   "Tone",   Range (0.0f, 1.0f), 0.5f));
+    layout.add (mkF (macroMotion, "Motion", Range (0.0f, 1.0f), 0.0f));
+    layout.add (mkF (macroSpace,  "Space",  Range (0.0f, 1.0f), 0.0f));
+    layout.add (mkC (viewMode,    "View",   viewModes, 0));
+
     return layout;
 }
 
