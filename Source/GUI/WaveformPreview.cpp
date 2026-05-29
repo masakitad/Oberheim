@@ -119,7 +119,23 @@ void WaveformPreview::resized()
     const int arrowW = juce::jmin (14, bounds.getWidth() / 6);
     leftArrowBox  = bounds.removeFromLeft  (arrowW);
     rightArrowBox = bounds.removeFromRight (arrowW);
-    previewBox    = bounds.reduced (2, 2);
+
+    // Constrain the preview to the design's 88x36 (~2.44:1) aspect ratio,
+    // centred within the available area. Without this clamp the path gets
+    // stretched into 5:1 verticals in tall narrow cells.
+    auto avail = bounds.reduced (2, 2);
+    constexpr float kAspect = 88.0f / 36.0f;
+    int targetW = avail.getWidth();
+    int targetH = static_cast<int> (std::round (targetW / kAspect));
+    if (targetH > avail.getHeight())
+    {
+        targetH = avail.getHeight();
+        targetW = static_cast<int> (std::round (targetH * kAspect));
+    }
+    previewBox = juce::Rectangle<int> (
+        avail.getCentreX() - targetW / 2,
+        avail.getCentreY() - targetH / 2,
+        targetW, targetH);
 }
 
 void WaveformPreview::paint (juce::Graphics& g)
