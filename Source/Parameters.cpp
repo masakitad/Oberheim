@@ -82,10 +82,10 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkC (slope,     "Slope",      slopes, 1));
 
     // Filter env
-    layout.add (mkF (filtA, "Filt A", hzLog (0.001f, 10.0f), 0.005f, "s"));
-    layout.add (mkF (filtD, "Filt D", hzLog (0.001f, 10.0f), 0.340f, "s"));
+    layout.add (mkF (filtA, "Filt A", hzLog (0.001f, 10.0f), 0.004f, "s"));
+    layout.add (mkF (filtD, "Filt D", hzLog (0.001f, 10.0f), 0.349f, "s"));
     layout.add (mkF (filtS, "Filt S", Range (0.0f, 1.0f),    0.15f));
-    layout.add (mkF (filtR, "Filt R", hzLog (0.001f, 10.0f), 0.240f, "s"));
+    layout.add (mkF (filtR, "Filt R", hzLog (0.001f, 10.0f), 0.249f, "s"));
 
     // Amp env
     layout.add (mkF (ampA, "Amp A", hzLog (0.001f, 10.0f), 0.004f, "s"));
@@ -97,7 +97,7 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (lfoRate,   "LFO Rate",   hzLog (0.05f, 30.0f), 4.0f, "Hz"));
     layout.add (mkC (lfoShape,  "LFO Shape",  lfoShapes, 0));
     layout.add (mkF (lfoToVco1, "LFO -> VCO1", Range (0.0f, 1.0f), 0.0f));
-    layout.add (mkF (lfoToVco2, "LFO -> VCO2", Range (0.0f, 1.0f), 0.0f));
+    layout.add (mkF (lfoToVco2, "LFO -> VCO2", Range (0.0f, 1.0f), 0.144f));
     layout.add (mkF (lfoToPwm,  "LFO -> PWM",  Range (0.0f, 1.0f), 0.0f));
 
     // Velocity
@@ -144,12 +144,12 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkF (delayMix,      "Delay Mix",        Range (0.0f, 1.0f),   0.486f));
 
     // Reverb
-    layout.add (mkF (reverbSize,       "Reverb Size",       Range (0.5f, 1.5f),     1.0f));
+    layout.add (mkF (reverbSize,       "Reverb Size",       Range (0.5f, 1.5f),     1.333f));
     layout.add (mkF (reverbDecay,      "Reverb Decay",      Range (0.0f, 1.0f),     0.55f));
     layout.add (mkF (reverbDamping,    "Reverb Damping",    Range (0.0f, 1.0f),     0.45f));
     layout.add (mkF (reverbPreDelay,   "Reverb Pre-delay",  Range (0.0f, 0.2f),     0.012f, "s"));
-    layout.add (mkF (reverbModulation, "Reverb Mod",        Range (0.0f, 0.005f),   0.001f));
-    layout.add (mkF (reverbWidth,      "Reverb Width",      Range (0.0f, 1.0f),     0.0f));
+    layout.add (mkF (reverbModulation, "Reverb Mod",        Range (0.0f, 0.005f),   0.000203f));
+    layout.add (mkF (reverbWidth,      "Reverb Width",      Range (0.0f, 1.0f),     0.722f));
     layout.add (mkF (reverbMix,        "Reverb Mix",        Range (0.0f, 1.0f),     0.0f));
 
     // Simple-view macros
