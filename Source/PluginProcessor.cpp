@@ -197,6 +197,13 @@ dsp::Voice::PerVoiceParams OB8Processor::snapshotParams() const
 
     p.pitchBendSemis = currentBendSemis + get (ParamID::masterTune) * 0.01;
 
+    // Per-block: drift depth is read here so the Voice's renderAdd can push
+    // it into the two AnalogDrift generators every block. Previously this
+    // APVTS parameter was set on the DRIFT knob but never reached the DSP,
+    // so the knob was inert and drift was permanently at AnalogDrift's
+    // hard-coded default (0.04 semis).
+    p.driftDepth    = get (ParamID::driftDepth);
+
     p.glideTime     = get (ParamID::glide);
     p.ampReleaseInf = get (ParamID::ampReleaseInf) > 0.5f;
 
@@ -375,7 +382,13 @@ void OB8Processor::noteOn (int midiNote, float velocity)
         {
             const double n = static_cast<double> (i) - (voices.size() - 1) * 0.5;
             auto pp = p;
-            pp.pitchBendSemis += n * detune;
+            // Persistent per-voice offset — the Voice copies this into its
+            // own instance field at startNote so subsequent per-block params
+            // snapshots (which leave persistentDetuneSemis at 0) don't wipe
+            // out the unison spread. Previously this was added to
+            // pitchBendSemis, which the next block's snapshotParams()
+            // immediately overwrote, making the UNI DET knob inert.
+            pp.persistentDetuneSemis = n * detune;
             voices[i].startNote (midiNote, velocity, noteOnCounter, pp);
         }
         return;
@@ -411,8 +424,9 @@ void OB8Processor::noteOn (int midiNote, float velocity)
 
         auto pa = p;
         auto pb = p;
-        pa.pitchBendSemis -= det * 0.5;
-        pb.pitchBendSemis += det * 0.5;
+        // Persistent per-voice offsets (same rationale as Unison: see above).
+        pa.persistentDetuneSemis = -det * 0.5;
+        pb.persistentDetuneSemis = +det * 0.5;
         voices[a].startNote (midiNote, velocity, noteOnCounter, pa);
         voices[b].startNote (midiNote, velocity, noteOnCounter, pb);
         return;

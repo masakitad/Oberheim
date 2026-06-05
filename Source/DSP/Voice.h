@@ -100,9 +100,20 @@ public:
         // Pitch bend semitones applied to both VCOs
         double pitchBendSemis = 0.0;
 
-        // Per-voice split offsets (applied externally per note)
+        // Per-voice constant pitch offset (semitones, applied to both VCOs).
+        // Set ONLY at note-on by the processor (unison spread, double layer
+        // detune). The Voice copies this into a persistent instance field at
+        // startNote so subsequent per-block params snapshots — which leave
+        // this at 0 — do not wipe out the offset.
+        double persistentDetuneSemis = 0.0;
+
+        // Per-voice split offsets (set at note-on; Voice copies to instance
+        // fields so subsequent per-block params snapshots do not reset them).
         double splitOctaveOffset = 0.0;  // octaves added to both VCOs
         double splitDetuneSemis  = 0.0;  // semitones added to VCO2 only
+
+        // Analog drift depth in semitones (per-block, from APVTS).
+        double driftDepth = 0.04;
 
         // Glide / portamento (seconds; 0 = no glide). Applied per-voice to
         // smoothly drift currentSmoothedNote toward the target MIDI note.
@@ -163,6 +174,14 @@ public:
         noteOnOrder     = order;
         active          = true;
 
+        // Capture per-note pitch offsets into persistent state. The processor
+        // can only set these on the PerVoiceParams it passes to startNote;
+        // subsequent per-block snapshots leave them at 0, so the Voice must
+        // remember its own copy to keep the offset across blocks.
+        voicePitchOffset  = p.persistentDetuneSemis;
+        voiceSplitOctave  = p.splitOctaveOffset;
+        voiceSplitDetune  = p.splitDetuneSemis;
+
         applyParams (p);
 
         // Pre-settle the filter for previously-idle voices.
@@ -213,6 +232,13 @@ public:
     {
         applyParams (params);
 
+        // Push the current drift depth from the per-block APVTS snapshot
+        // into the two drift generators. The DRIFT knob writes this value;
+        // without this push it stayed at AnalogDrift's hard-coded default
+        // of 0.04 semitones, i.e. the knob did nothing.
+        drift1.setDepthSemitones (params.driftDepth);
+        drift2.setDepthSemitones (params.driftDepth);
+
         // Per-block glide coefficient. 0 means glide is off (snap to target).
         // For glide > 0 we use a one-pole that reaches 99% of the target in
         // `glideTime` seconds.
@@ -247,16 +273,23 @@ public:
             // Glide: smoothly approach the target MIDI note
             currentSmoothedNote += glideCoef * (currentMidiNote - currentSmoothedNote);
 
-            const double oct1 = params.vco1Octave + params.splitOctaveOffset;
-            const double oct2 = params.vco2Octave + params.splitOctaveOffset;
+            // Split offsets and the per-voice persistent detune (unison /
+            // double spread) come from the Voice's own instance state,
+            // captured at note-on. The corresponding fields on `params`
+            // are reset to 0 by the per-block snapshot and must not be
+            // read here.
+            const double oct1 = params.vco1Octave + voiceSplitOctave;
+            const double oct2 = params.vco2Octave + voiceSplitOctave;
 
             const double f1 = midiToHz (currentSmoothedNote + 12.0 * oct1
                                         + d1 + lfoPitch1 + bend + vibrato
+                                        + voicePitchOffset
                                         + params.envToVco1Semis * fe);
             const double f2 = midiToHz (currentSmoothedNote + 12.0 * oct2
                                         + params.vco2DetuneSemis
-                                        + params.splitDetuneSemis
+                                        + voiceSplitDetune
                                         + d2 + lfoPitch2 + bend + vibrato
+                                        + voicePitchOffset
                                         + params.envToVco2Semis * fe);
 
             vco1.setFrequency (f1);
@@ -408,6 +441,15 @@ private:
     float  currentVelocity    = 1.0f;
     int    noteOnOrder        = 0;
     int    fadeInCountdown    = 0;
+
+    // Persistent per-voice pitch offsets, captured from PerVoiceParams at
+    // startNote and used in renderAdd. These outlive any per-block params
+    // snapshot, which is necessary because the processor's snapshotParams()
+    // returns fresh PerVoiceParams every block and would otherwise overwrite
+    // unison / double / split offsets that were only set at note-on time.
+    double voicePitchOffset  = 0.0;  // unison spread or double detune (semis)
+    double voiceSplitOctave  = 0.0;  // Split mode upper-half octave shift
+    double voiceSplitDetune  = 0.0;  // Split mode upper-half VCO2 detune (semis)
 };
 
 } // namespace ob8::dsp
