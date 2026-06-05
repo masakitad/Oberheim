@@ -33,9 +33,13 @@
   4. Finder のウィンドウから install.command を
      ターミナルのウィンドウへドラッグ&ドロップする。
 
-     これで "bash " の続きに install.command のフルパスが入る:
+     ターミナルが自動でパスをエスケープしてくれるので、フォルダ名に
+     スペースが含まれていても下記のような形で正しく入ります:
 
-          bash /Users/.../OB-8 Native/install.command
+          bash /Users/.../OB-8\ Native/install.command
+
+     (空白の手前のバックスラッシュ "\" はターミナルが自動で入れます。
+      手で打ち直す必要はありません)
 
   5. Return キーを押す。
 
