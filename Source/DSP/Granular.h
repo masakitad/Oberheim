@@ -58,12 +58,12 @@ public:
         feedbackStateL = feedbackStateR = 0.0;
         dcX1L = dcX1R = dcY1L = dcY1R = 0.0;
 
-        setGrainMs        (140.0);
-        setDensityHz      (12.0);
-        setScatter        (0.5);
+        setGrainMs        (220.0);
+        setDensityHz      (14.0);
+        setScatter        (0.55);
         setPitchSemis     (0.0);
-        setSpread         (0.7);
-        setFeedback       (0.30);
+        setSpread         (0.85);
+        setFeedback       (0.45);
     }
 
     void reset()
@@ -124,19 +124,34 @@ public:
         {
             if (! gr.active) continue;
 
+            // 4-point cubic Hermite interpolation. Linear interp produces
+            // audible HF aliasing once grains are pitched (cent jitter from
+            // scatter, or the pitch knob); cubic stays clean for any usable
+            // pitch ratio.
             const double pos  = gr.position;
-            const int    i0   = (static_cast<int> (std::floor (pos)) % bufLen + bufLen) % bufLen;
-            const int    i1   = (i0 + 1) % bufLen;
+            const int    i1   = (static_cast<int> (std::floor (pos)) % bufLen + bufLen) % bufLen;
+            const int    i0   = (i1 - 1 + bufLen) % bufLen;
+            const int    i2   = (i1 + 1) % bufLen;
+            const int    i3   = (i1 + 2) % bufLen;
             const double frac = pos - std::floor (pos);
-            const double sL = (1.0 - frac) * bufL[static_cast<size_t> (i0)]
-                                    + frac * bufL[static_cast<size_t> (i1)];
-            const double sR = (1.0 - frac) * bufR[static_cast<size_t> (i0)]
-                                    + frac * bufR[static_cast<size_t> (i1)];
+            const double sL = hermite4 (bufL[static_cast<size_t> (i0)],
+                                        bufL[static_cast<size_t> (i1)],
+                                        bufL[static_cast<size_t> (i2)],
+                                        bufL[static_cast<size_t> (i3)], frac);
+            const double sR = hermite4 (bufR[static_cast<size_t> (i0)],
+                                        bufR[static_cast<size_t> (i1)],
+                                        bufR[static_cast<size_t> (i2)],
+                                        bufR[static_cast<size_t> (i3)], frac);
 
-            // Hann window over the grain lifetime
+            // Hann window over THIS grain's lifetime. Divisor must be the
+            // grain's own (length - 1), not the global grainSamples — when
+            // Granular Size changes mid-grain, existing grains keep their
+            // original length, and using the new global value would
+            // mis-shape the envelope and re-introduce edge clicks.
+            const double hannDenom = std::max (1.0,
+                static_cast<double> (gr.grainLength - 1));
             const double w = 0.5 * (1.0 - std::cos (
-                static_cast<double> (gr.samplesElapsed) /
-                static_cast<double> (gr.grainLength) * kTwoPi));
+                static_cast<double> (gr.samplesElapsed) / hannDenom * kTwoPi));
 
             wetL += sL * w * gr.panL;
             wetR += sR * w * gr.panR;
@@ -194,6 +209,18 @@ public:
 private:
     static constexpr double kTwoPi = 6.283185307179586;
 
+    // 4-point Catmull-Rom cubic Hermite interpolation (B = 0, C = 0.5).
+    // Smoother than linear, kills HF aliasing on pitched grain reads.
+    static inline double hermite4 (double y0, double y1, double y2, double y3,
+                                   double t) noexcept
+    {
+        const double c0 = y1;
+        const double c1 = 0.5 * (y2 - y0);
+        const double c2 = y0 - 2.5 * y1 + 2.0 * y2 - 0.5 * y3;
+        const double c3 = 0.5 * (y3 - y0) + 1.5 * (y1 - y2);
+        return ((c3 * t + c2) * t + c1) * t + c0;
+    }
+
     struct Grain
     {
         bool   active = false;
@@ -220,11 +247,16 @@ private:
         const double r2 = u01 (rng);
         const double r3 = u01 (rng);
 
-        // Read position ~ 0.5 * grainSize back from the write head, plus
-        // up to 0.5 s of scatter. Short enough that there's no long
-        // silence at start-up; the grain envelope still tapers so we
-        // never actually overlap the writer audibly.
-        const double meanLatency = static_cast<double> (grainSamples) * 0.5;
+        // Read position must be far enough behind the write head that
+        // a pitched-up grain (increment > 1) doesn't reach the writer
+        // mid-grain. The minimum safe latency is grainSamples * pitchRatio,
+        // since a grain at increment `r` traverses `grainSamples * r`
+        // samples of buffer over its lifetime. We previously used
+        // 0.5 * grainSamples, which was the source of audible glitches
+        // for any pitch ratio >= 1 plus cent jitter — the grain would
+        // catch the writer at the end of its envelope.
+        const double safetyRatio = std::max (1.0, pitchRatio);
+        const double meanLatency = static_cast<double> (grainSamples) * safetyRatio;
         const double maxScatter  = sr * 0.5 * scatter01;
         const double readOffset  = meanLatency + r1 * maxScatter;
         const int    bufLen      = static_cast<int> (bufL.size());
