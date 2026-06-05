@@ -27,11 +27,57 @@ OB8Knob::OB8Knob (juce::AudioProcessorValueTreeState& apvts,
 void OB8Knob::resized()
 {
     auto bounds = getLocalBounds();
-    label .setBounds (bounds.removeFromTop (14));
+    label.setBounds (bounds.removeFromTop (14));
+
+    // Reserve a row at the bottom for ModChips. The chips sit BELOW the
+    // slider's TextBoxBelow so the value readout is never covered.
+    constexpr int kChipRowH = ModChip::kHeight;
+    constexpr int kChipRowGap = 2;
+    if (! chips.empty())
+    {
+        auto chipRow = bounds.removeFromBottom (kChipRowH);
+        bounds.removeFromBottom (kChipRowGap);
+
+        // Allocate width per chip using its preferred width, but shrink
+        // proportionally if the row is too tight. Hard floor at 14 px so
+        // even a 1-char chip remains readable.
+        const int n = static_cast<int> (chips.size());
+        int totalPreferred = 0;
+        for (auto& c : chips) totalPreferred += c->preferredWidth();
+        const int interGap = (n > 1) ? 2 : 0;
+        const int totalGap = interGap * (n - 1);
+        const int avail = std::max (0, chipRow.getWidth() - totalGap);
+
+        const float scale = (totalPreferred > avail && totalPreferred > 0)
+            ? static_cast<float> (avail) / static_cast<float> (totalPreferred)
+            : 1.0f;
+
+        int x = chipRow.getX();
+        for (int i = 0; i < n; ++i)
+        {
+            int w = static_cast<int> (std::round (chips[i]->preferredWidth() * scale));
+            w = std::max (14, w);
+            const int actualW = std::min (w, chipRow.getRight() - x);
+            chips[i]->setBounds (x, chipRow.getY(), actualW, chipRow.getHeight());
+            x += actualW + interGap;
+        }
+    }
     slider.setBounds (bounds);
 }
 
 void OB8Knob::paint (juce::Graphics&) {}
+
+void OB8Knob::setChipLabels (const std::vector<juce::String>& labels)
+{
+    chips.clear();
+    for (const auto& t : labels)
+    {
+        auto chip = std::make_unique<ModChip> (t);
+        addAndMakeVisible (*chip);
+        chips.push_back (std::move (chip));
+    }
+    resized();
+}
 
 // ---------- Toggle -----------------------------------------------------
 

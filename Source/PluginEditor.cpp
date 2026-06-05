@@ -89,15 +89,10 @@ OB8Editor::OB8Editor (OB8Processor& p)
     kbdTrack .reset (new OB8Knob   (apvts, ParamID::kbdTrack,  "KBD"));
     slope    .reset (new OB8Choice (apvts, ParamID::slope,     "SLOPE"));
 
-    // FILTER ModChips (handoff §6.4)
-    chipCutoffE2.reset (new ModChip ("E2"));
-    chipCutoffL1.reset (new ModChip ("L1"));
-    chipCutoffV1.reset (new ModChip ("V1"));
-    chipResE2   .reset (new ModChip ("E2"));
-    addAndMakeVisible (*chipCutoffE2);
-    addAndMakeVisible (*chipCutoffL1);
-    addAndMakeVisible (*chipCutoffV1);
-    addAndMakeVisible (*chipResE2);
+    // FILTER ModChips (handoff §6.4) -- attached directly to the knobs so
+    // they share the cell's width and never overlap the value readout.
+    cutoff   ->setChipLabels ({ "E2", "L1", "V1" });
+    resonance->setChipLabels ({ "E2" });
 
     // Filter env
     filtA.reset (new OB8Knob (apvts, ParamID::filtA, "A"));
@@ -436,11 +431,7 @@ void OB8Editor::applyViewMode()
     recallBtn.setVisible      (! simple);
     saveBankBtn.setVisible    (! simple);
 
-    // ModChips track the FULL view
-    if (chipCutoffE2) chipCutoffE2->setVisible (! simple);
-    if (chipCutoffL1) chipCutoffL1->setVisible (! simple);
-    if (chipCutoffV1) chipCutoffV1->setVisible (! simple);
-    if (chipResE2)    chipResE2   ->setVisible (! simple);
+    // ModChips now ride along with their parent knob's visibility automatically.
     loadBankBtn.setVisible    (! simple);
 
     resized();
@@ -861,51 +852,72 @@ void OB8Editor::resized()
     const int rowH2  = (availH * 24) / 100;
     const int rowH3  = (availH * 26) / 100;
 
-    // Row 1: VCO1 | VCO2 | X-MOD | MIXER | FILTER | FILTER ENV
+    // Flex-distribute a row across the given (sectionIndex, flex, cols) tuples
+    // per handoff §7. Widths sum to exactly the row width (no leftover/overflow).
+    constexpr int kSecGap = 8;
+    auto layoutRow = [&] (juce::Rectangle<int> row,
+                          std::vector<std::tuple<int, float, int>> specs)
+    {
+        float totalFlex = 0.0f;
+        for (auto& [idx, f, cols] : specs) totalFlex += f;
+        const int totalGap = kSecGap * (static_cast<int> (specs.size()) - 1);
+        const int avail = std::max (1, row.getWidth() - totalGap);
+
+        // Distribute widths by rounded flex; assign any remainder to the
+        // last section so totals match the row width exactly.
+        std::vector<int> widths (specs.size(), 0);
+        int assigned = 0;
+        for (size_t i = 0; i + 1 < specs.size(); ++i)
+        {
+            const float flex = std::get<1> (specs[i]);
+            const int w = static_cast<int> (std::round (avail * flex / totalFlex));
+            widths[i] = w;
+            assigned += w;
+        }
+        widths.back() = avail - assigned;
+
+        for (size_t i = 0; i < specs.size(); ++i)
+        {
+            const auto& [idx, f, cols] = specs[i];
+            layoutSection (sections[static_cast<size_t> (idx)],
+                           row.removeFromLeft (widths[i]), cols);
+            if (i + 1 < specs.size()) row.removeFromLeft (kSecGap);
+        }
+    };
+
+    // Row 1 -- §7 spec flex weights: VCO1 1.45, VCO2 1.65, X-MOD 0.80,
+    //                                MIXER 1.10, FILTER 1.70, FILTER ENV 1.30
     auto row1 = bounds.removeFromTop (rowH1);
-
-    const int wVCO1   = 170;
-    const int wVCO2   = 210;
-    const int wXMod   = 110;
-    const int wMixer  = 200;
-    const int wFilter = 320;
-
-    layoutSection (sections[0], row1.removeFromLeft (wVCO1),   3);
-    row1.removeFromLeft (8);
-    layoutSection (sections[1], row1.removeFromLeft (wVCO2),   4);
-    row1.removeFromLeft (8);
-    layoutSection (sections[2], row1.removeFromLeft (wXMod),   1);
-    row1.removeFromLeft (8);
-    layoutSection (sections[3], row1.removeFromLeft (wMixer),  3);
-    row1.removeFromLeft (8);
-    layoutSection (sections[4], row1.removeFromLeft (wFilter), 3);
-    row1.removeFromLeft (8);
-    layoutSection (sections[5], row1,                          4);
+    layoutRow (row1, {
+        { 0, 1.45f, 3 },   // VCO 1: oct, wave, pw
+        { 1, 1.65f, 4 },   // VCO 2: oct, wave, pw, detune
+        { 2, 0.80f, 1 },   // X-MOD / SYNC: 1 col x 2 rows
+        { 3, 1.10f, 3 },   // MIXER
+        { 4, 1.70f, 3 },   // FILTER (laid out 3 cols x 2 rows below)
+        { 5, 1.30f, 4 },   // FILTER ENV
+    });
 
     bounds.removeFromTop (kInterRowGap);
 
-    // Row 2: AMP ENV | LFO | VELOCITY | VOICE
+    // Row 2 -- AMP ENV 1.30, LFO 1.95, VELOCITY 0.95, VOICE 2.00
     auto row2 = bounds.removeFromTop (rowH2);
-    const int wAEnv  = 240;
-    const int wLfo   = 340;
-    const int wVel   = 180;
-
-    layoutSection (sections[6], row2.removeFromLeft (wAEnv), 4);
-    row2.removeFromLeft (8);
-    layoutSection (sections[7], row2.removeFromLeft (wLfo),  5);
-    row2.removeFromLeft (8);
-    layoutSection (sections[8], row2.removeFromLeft (wVel),  2);
-    row2.removeFromLeft (8);
-    // VOICE has 9 children (mode / uni-det / drift / volume / tune / bend
-    // / glide / hold / rel-infinity). 9 columns keep them in a single row.
-    layoutSection (sections[9], row2,                        9);
+    layoutRow (row2, {
+        { 6, 1.30f, 4 },   // AMP ENV
+        { 7, 1.95f, 5 },   // LFO
+        { 8, 0.95f, 2 },   // VELOCITY
+        { 9, 2.00f, 9 },   // VOICE (9 controls)
+    });
 
     bounds.removeFromTop (kInterRowGap);
 
-    // Row 3: PAGE 2 | SPLIT/DOUBLE | PATCH BANK (hand-laid out)
+    // Row 3 -- PAGE 2 2.05, SPLIT/DOUBLE 1.00, PATCH BANK 1.55
     auto row3 = bounds.removeFromTop (rowH3);
-    const int wPage2 = 620;
-    const int wSplit = 220;
+    const int row3w = row3.getWidth();
+    const float row3Flex[3] = { 2.05f, 1.00f, 1.55f };
+    const float row3FlexSum = row3Flex[0] + row3Flex[1] + row3Flex[2];
+    const int row3Avail = row3w - 2 * kSecGap;
+    const int wPage2 = static_cast<int> (std::round (row3Avail * row3Flex[0] / row3FlexSum));
+    const int wSplit = static_cast<int> (std::round (row3Avail * row3Flex[1] / row3FlexSum));
 
     layoutSection (sections[10], row3.removeFromLeft (wPage2), 5);
     row3.removeFromLeft (8);
@@ -952,32 +964,6 @@ void OB8Editor::resized()
     layoutSection (sections[14], row4.removeFromLeft (wReverb), 7);
     row4.removeFromLeft (8);
     layoutSection (sections[15], row4,                          7);
-
-    // ---- FILTER ModChips ------------------------------------------------
-    // Position them inline below the CUTOFF and RES knob value displays.
-    // Handoff §6.4: chip height 12 px; we lay them out side-by-side.
-    if (cutoff != nullptr && chipCutoffE2 != nullptr)
-    {
-        auto place = [&] (ModChip& c, juce::Rectangle<int>& cursor)
-        {
-            const int w = c.preferredWidth();
-            c.setBounds (cursor.removeFromLeft (w + 4).withTrimmedRight (4)
-                                                       .withHeight (ModChip::kHeight)
-                                                       .withY (cursor.getY()));
-        };
-        const int chipBaselineOffset = 4;
-        auto cutoffBox = cutoff->getBounds()
-                            .withTrimmedTop (cutoff->getHeight() - ModChip::kHeight - chipBaselineOffset)
-                            .reduced (2, 0);
-        place (*chipCutoffE2, cutoffBox);
-        place (*chipCutoffL1, cutoffBox);
-        place (*chipCutoffV1, cutoffBox);
-
-        auto resBox = resonance->getBounds()
-                         .withTrimmedTop (resonance->getHeight() - ModChip::kHeight - chipBaselineOffset)
-                         .reduced (2, 0);
-        place (*chipResE2, resBox);
-    }
 }
 
 } // namespace ob8
