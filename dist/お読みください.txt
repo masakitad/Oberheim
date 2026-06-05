@@ -11,27 +11,57 @@
   - お読みください.txt          このファイル
 
 ------------------------------------------------
-インストール (一括 / 推奨)
+インストール手順
 ------------------------------------------------
 
-1.  "install.command" をダブルクリックしてください。
-    Terminal が自動で開き、進捗が表示されます。
+ダウンロードした install.command はそのままダブルクリックでは開けません
+(macOS のセキュリティが新規ファイルをブロックするため)。
+以下の方法ならどの macOS バージョンでも確実に動きます。
 
-2.  以下を自動で行います:
-      - 各バンドルから Gatekeeper の隔離属性を除去
-      - その Mac でのアドホック署名を打ち直し
-      - VST3 を ~/Library/Audio/Plug-Ins/VST3/ にコピー
-      - AU  を ~/Library/Audio/Plug-Ins/Components/ にコピー
-      - Standalone を /Applications にコピー (任意で選択)
+  1. このフォルダ (zip を展開したもの) はそのままにしておく。
 
-3.  完了したら DAW を起動して、プラグインを再スキャン:
-      - Logic Pro     : 起動時に AU の認証ダイアログ
-      - Ableton Live  : 設定 → プラグイン → 再スキャン
-      - Cubase        : Studio → VST プラグインマネージャ → 更新
-      - Reaper        : Preferences → Plug-ins → VST → Clear cache and re-scan
+  2. ターミナルを開く:
+       Spotlight (⌘ + スペース) → "ターミナル" と入力 → Return
 
-4.  プラグインリストから "OB8Native" メーカーの "OB-8 Native" を
-    新規トラックに挿してください。
+  3. キーボードで b → a → s → h と打ち、最後に
+     スペースキーを 1 回押す。
+
+     ターミナルの表示はこの状態 (カーソルが 1 つぶん右にずれる):
+
+          bash █
+
+  4. Finder のウィンドウから install.command を
+     ターミナルのウィンドウへドラッグ&ドロップする。
+
+     これで "bash " の続きに install.command のフルパスが入る:
+
+          bash /Users/.../OB-8 Native/install.command
+
+  5. Return キーを押す。
+
+  6. ターミナル内で進捗が流れます。途中で
+     "Standalone (OB-8 Native.app) について:" と聞かれたら、
+     1 / 2 / 3 のいずれかを入力して Return:
+       1 = 今の場所のまま起動
+       2 = /Applications にコピーしてから起動
+       3 = Standalone は何もしない
+
+  7. install.command が自動で:
+        - 各バンドルから Gatekeeper の隔離属性を除去 (xattr -cr)
+        - その Mac でのアドホック署名を打ち直し (codesign --sign -)
+        - VST3 を ~/Library/Audio/Plug-Ins/VST3/ にコピー
+        - AU  を ~/Library/Audio/Plug-Ins/Components/ にコピー
+        - Standalone を /Applications にコピー (任意で選択)
+
+  8. 完了したら DAW を起動して、プラグインを再スキャン:
+        - Logic Pro     : 起動時に AU の認証ダイアログ
+        - Ableton Live  : 設定 → プラグイン → 再スキャン
+        - Cubase        : Studio → VST プラグインマネージャ → 更新
+        - Reaper        : Preferences → Plug-ins → VST →
+                          Clear cache and re-scan
+
+  9. プラグインリストから "OB8Native" メーカーの "OB-8 Native" を
+     新規トラックに挿してください。
 
 ------------------------------------------------
 なぜインストーラーが必要か
@@ -47,15 +77,10 @@ macOS の Gatekeeper は Apple Developer ID で署名されていない
 install.command がこれを各形式 (.app/.vst3/.component) に対して
 自動で行います。
 
-------------------------------------------------
-"install.command" がダブルクリックで開けない場合
-------------------------------------------------
-
-macOS のセキュリティ設定によっては .command ファイルが直接開けない
-ことがあります。その場合は Terminal を開き:
-
-    cd "ここにインストーラーがあるフォルダを Finder からドラッグ"
-    bash install.command
+ターミナル経由で実行する理由: macOS 15 (Sequoia) 以降、Finder からの
+ダブルクリック起動および「右クリック → 開く」は未署名ファイルに対して
+強く制限されました。ターミナル経由 (bash 経由) なら macOS バージョン
+を問わず必ず実行できます。
 
 ------------------------------------------------
 コマンドラインで手動インストール
