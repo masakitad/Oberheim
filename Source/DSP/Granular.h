@@ -119,8 +119,6 @@ public:
         // 2. Sum active grains.
         double wetL = 0.0, wetR = 0.0;
         const int bufLen = static_cast<int> (bufL.size());
-        const double hannDenom = std::max (1.0,
-            static_cast<double> (grainSamples - 1));
 
         for (auto& gr : grains)
         {
@@ -145,10 +143,13 @@ public:
                                         bufR[static_cast<size_t> (i2)],
                                         bufR[static_cast<size_t> (i3)], frac);
 
-            // Hann window over the grain lifetime. Divisor is (N - 1) so
-            // both endpoints close exactly at zero — `/ N` leaves a tiny
-            // residual at the last sample of each grain which manifests as
-            // a periodic click at the grain-density rate.
+            // Hann window over THIS grain's lifetime. Divisor must be the
+            // grain's own (length - 1), not the global grainSamples — when
+            // Granular Size changes mid-grain, existing grains keep their
+            // original length, and using the new global value would
+            // mis-shape the envelope and re-introduce edge clicks.
+            const double hannDenom = std::max (1.0,
+                static_cast<double> (gr.grainLength - 1));
             const double w = 0.5 * (1.0 - std::cos (
                 static_cast<double> (gr.samplesElapsed) / hannDenom * kTwoPi));
 
