@@ -10,13 +10,37 @@
   - install.command            まとめてインストールするスクリプト
   - お読みください.txt          このファイル
 
+================================================
+  まず最初に (★必読★)
+================================================
+
+ダウンロード直後の install.command は macOS Gatekeeper にブロック
+されます。「"install.command" は、開発元が未確認のため開けません」
+というダイアログが出る場合は、 以下の Terminal 一発で解除できます:
+
+  1. Terminal.app を開く (Spotlight で "ターミナル" と検索)
+
+  2. 次の 1 行をコピーして Terminal に貼り付ける
+     (まだ Enter は押さない):
+
+         xattr -cr
+
+     ↑ 末尾に半角スペース 1 つを入れる
+
+  3. このフォルダを Finder で開き、フォルダ自身 (上部のアイコン)
+     を Terminal 内の "xattr -cr " の後ろにドラッグ&ドロップ
+
+         例: xattr -cr "/Users/your-name/Downloads/OB-8 Native"
+
+  4. Enter キーを押す (何も表示されず一瞬で終わります)
+
+  5. これでフォルダ内すべてのファイルから macOS の quarantine 属性
+     が外れます。あとは install.command をダブルクリック OK です。
+
 ------------------------------------------------
-インストール手順
+それでも install.command が開けない場合 (代替手段)
 ------------------------------------------------
 
-ダウンロードした install.command はそのままダブルクリックでは開けません
-(macOS のセキュリティが新規ファイルをブロックするため)。
-以下の方法ならどの macOS バージョンでも確実に動きます。
 
   1. このフォルダ (zip を展開したもの) はそのままにしておく。
 
@@ -67,67 +91,3 @@
   9. プラグインリストから "OB8Native" メーカーの "OB-8 Native" を
      新規トラックに挿してください。
 
-------------------------------------------------
-なぜインストーラーが必要か
-------------------------------------------------
-
-macOS の Gatekeeper は Apple Developer ID で署名されていない
-バンドルの起動をブロックします。OB-8 Native は自家ビルド (ad-hoc
-署名) なので、受け取り側の Mac で開く前に下記が必要です:
-
-  - 隔離属性 (com.apple.quarantine) の解除
-  - その Mac でのアドホック署名打ち直し
-
-install.command がこれを各形式 (.app/.vst3/.component) に対して
-自動で行います。
-
-ターミナル経由で実行する理由: macOS 15 (Sequoia) 以降、Finder からの
-ダブルクリック起動および「右クリック → 開く」は未署名ファイルに対して
-強く制限されました。ターミナル経由 (bash 経由) なら macOS バージョン
-を問わず必ず実行できます。
-
-------------------------------------------------
-コマンドラインで手動インストール
-------------------------------------------------
-
-install.command を使わない場合、それぞれ手動でも可能:
-
-  # 共通の前処理
-  xattr -cr "OB-8 Native.vst3"
-  codesign --force --deep --sign - "OB-8 Native.vst3"
-
-  xattr -cr "OB-8 Native.component"
-  codesign --force --deep --sign - "OB-8 Native.component"
-
-  xattr -cr "OB-8 Native.app"
-  codesign --force --deep --sign - "OB-8 Native.app"
-
-  # 配置
-  mkdir -p ~/Library/Audio/Plug-Ins/VST3
-  cp -R "OB-8 Native.vst3"      ~/Library/Audio/Plug-Ins/VST3/
-
-  mkdir -p ~/Library/Audio/Plug-Ins/Components
-  cp -R "OB-8 Native.component" ~/Library/Audio/Plug-Ins/Components/
-
-  # Standalone は好きな場所 (例: /Applications) に
-  cp -R "OB-8 Native.app" /Applications/
-
-------------------------------------------------
-動作環境
-------------------------------------------------
-
-  - macOS 10.13 (High Sierra) 以降
-  - Intel / Apple Silicon どちらも (ユニバーサルバイナリ)
-  - Xcode コマンドラインツール (codesign を使うため)
-      $ xcode-select --install
-
-------------------------------------------------
-アンインストール
-------------------------------------------------
-
-  rm -rf ~/Library/Audio/Plug-Ins/VST3/"OB-8 Native.vst3"
-  rm -rf ~/Library/Audio/Plug-Ins/Components/"OB-8 Native.component"
-  rm -rf /Applications/"OB-8 Native.app"
-  rm -rf ~/"Library/Application Support/OB-8 Native"    # 設定ファイル
-
-================================================
