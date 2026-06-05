@@ -171,12 +171,12 @@ APVTS::ParameterLayout createParameterLayout()
     layout.add (mkC (viewMode,    "View",   viewModes, 0));
 
     // Granular delay
-    layout.add (mkF (granularSize,     "Granular Size",     hzLog (10.0f, 500.0f), 140.0f, "ms"));
-    layout.add (mkF (granularDensity,  "Granular Density",  hzLog (1.0f, 50.0f),    12.0f, "Hz"));
-    layout.add (mkF (granularScatter,  "Granular Scatter",  Range (0.0f, 1.0f),     0.50f));
+    layout.add (mkF (granularSize,     "Granular Size",     hzLog (10.0f, 500.0f), 220.0f, "ms"));
+    layout.add (mkF (granularDensity,  "Granular Density",  hzLog (1.0f, 50.0f),    14.0f, "Hz"));
+    layout.add (mkF (granularScatter,  "Granular Scatter",  Range (0.0f, 1.0f),     0.55f));
     layout.add (mkF (granularPitch,    "Granular Pitch",    Range (-12.0f, 12.0f),  0.0f,  "st"));
-    layout.add (mkF (granularSpread,   "Granular Spread",   Range (0.0f, 1.0f),     0.70f));
-    layout.add (mkF (granularFeedback, "Granular Feedback", Range (0.0f, 0.9f),     0.30f));
+    layout.add (mkF (granularSpread,   "Granular Spread",   Range (0.0f, 1.0f),     0.85f));
+    layout.add (mkF (granularFeedback, "Granular Feedback", Range (0.0f, 0.9f),     0.45f));
     layout.add (mkF (granularMix,      "Granular Mix",      Range (0.0f, 1.0f),     0.0f));
 
     return layout;
