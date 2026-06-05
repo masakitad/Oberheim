@@ -96,18 +96,23 @@ install.command がこれを各形式 (.app/.vst3/.component) に対して
 コマンドラインで完全手動インストール (上級者向け)
 ------------------------------------------------
 
-install.command を使わない場合、それぞれ手動でも可能:
+install.command を使わない場合、それぞれ手動でも可能。
+Terminal を開き、まず「このフォルダ (= お読みください.txt がある場所)」
+に cd してください:
 
-  # フォルダ全体の quarantine を一括解除
-  xattr -cr "OB-8 Native"
+    cd "ここにフォルダを Finder からドラッグ"
 
-  # 共通の前処理
-  cd "OB-8 Native"
+そのまま続けて:
+
+  # 1. フォルダ全体の quarantine を一括解除 (カレントディレクトリ)
+  xattr -cr .
+
+  # 2. 各バンドルにアドホック署名
   codesign --force --deep --sign - "OB-8 Native.vst3"
   codesign --force --deep --sign - "OB-8 Native.component"
   codesign --force --deep --sign - "OB-8 Native.app"
 
-  # 配置
+  # 3. 配置
   mkdir -p ~/Library/Audio/Plug-Ins/VST3
   cp -R "OB-8 Native.vst3"      ~/Library/Audio/Plug-Ins/VST3/
 
